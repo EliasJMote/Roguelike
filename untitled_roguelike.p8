@@ -2,8 +2,6 @@ pico-8 cartridge // http://www.pico-8.com
 version 17
 __lua__
 
---#include level_gen.p8
-
 function gen_objects(r)
 	return r
 end
@@ -12,13 +10,13 @@ function gen_enemies(r)
 	return r
 end
 
-function gen_doors(f)
+function gen_doors(g,f)
 
 	-- for each room on the floor
 	for r in all(f) do
 		
 		-- each room has a different type of block
-		local blk_num = block_spr_table[r.name]
+		local blk_num = g.block_spr_table[r.name]
 
 		-- generate doors
 		for i=1*16+1,16*16 do
@@ -65,7 +63,7 @@ function gen_location(r)
 	return r
 end
 
-function create_room(f,name)
+function create_room(g,f,name)
 	
 	local r = {}
 	r.name = name or "normal"
@@ -81,7 +79,7 @@ function create_room(f,name)
 	end
 
 	-- each room has a different type of block
-	local blk_num = block_spr_table[r.name]
+	local blk_num = g.block_spr_table[r.name]
 
 	-- declare the empty block table for the room
 	r.blocks = {}
@@ -212,49 +210,49 @@ function count_room_connections(f,r)
 end
 
 -- generate a possible floor
-function gen_floor()
+function gen_floor(g)
 
 	local f = {}
-	f = create_room(f,"central")
+	f = create_room(g,f,"central")
 	
 	-- generate 6 to 9 normal rooms
 	local num_normal_rooms = 6 + flr(rnd(3))
 	while(count_room_type(f,"normal") < num_normal_rooms) do
-		f = create_room(f,"normal")
+		f = create_room(g,f,"normal")
 	end
 
 	-- generate a battle room
 	while(count_room_type(f,"battle") == 0) do
-		f = create_room(f,"battle")
+		f = create_room(g,f,"battle")
 	end
 
 	-- 25% chance to generate a sacrifice room
 	if(flr(rnd(4)) == 0) then
 		while(count_room_type(f,"sacrifice") == 0) do
-			f = create_room(f,"sacrifice")
+			f = create_room(g,f,"sacrifice")
 		end
 	end
 
 	-- generate a secret room
 	while(count_room_type(f,"secret") == 0) do
-		f = create_room(f,"secret")
+		f = create_room(g,f,"secret")
 	end
 
 	-- generate a super secret room
 	while(count_room_type(f,"super_secret") == 0) do
-		f = create_room(f,"super_secret")
+		f = create_room(g,f,"super_secret")
 	end
 
 	-- chance to generate a sub-boss room
 	if(flr(rnd(7)) == 0) then
 		while(count_room_type(f,"sub_boss") == 0) do
-			f = create_room(f,"sub_boss")
+			f = create_room(g,f,"sub_boss")
 		end
 	end
 
 	-- generate a boss room
 	while(count_room_type(f,"boss") == 0) do
-		f = create_room(f,"boss")
+		f = create_room(g,f,"boss")
 	end
 
 	--[[
@@ -292,63 +290,105 @@ function validate_floor(f)
 	return true
 end
 
+function get_enemies_from_pool(enemy_pool,enemies,room_x,room_y)
+	local e_pool = {}
+	for e in all(enemy_pool) do
+		if(e.x == room_x and e.y == room_y) then
+			e_pool = e.enemies
+		end
+	end
+	return e_pool
+end
+
+-- spawn enemy function
+function spawn_enemy(enemies,x,y, w, h, name)
+	
+	local e = {}
+	e.x = x or 0
+	e.y = y or 0
+	e.dx = 0
+	e.dy = 0
+	e.w = w or 8
+	e.h = h or 8
+	e.name = name or "default"
+	e.spd = 1
+	e.spr = 35
+	e.is_boss = false
+	
+	if(e.name == "skeleton") then
+		e.spr = 36
+		e.is_boss = false
+	end
+
+	add(enemies,e)
+
+	return enemies
+end
+
 -- refresh game timer, enemies
-function refresh_room()
-	timer = 0
-	enemies = {}
-	blocks = {}
-	p1.shots = {}
+function refresh_room(g)
+	g.timer = 0
+	g.blocks = {}
+	g.enemies = {}
+	g.p1.shots = {}
 	for i=1,64*64 do
-		add(blocks,0)
+		add(g.blocks,0)
 	end
 	local room_exists = false
-	for r in all(floor) do
-		if(r.x == world.x and r.y == world.y) then
-			blocks = r.blocks
-			p1.room.name = r.name
+	for r in all(g.floor) do
+		if(r.x == g.world.x and r.y == g.world.y) then
+			g.blocks = r.blocks
+			g.p1.room.name = r.name
 			room_exists = true
+			local e_pool = get_enemies_from_pool(g.enemy_pool,g.enemies,g.world.x,g.world.y)
+			for e in all(e_pool) do
+				g.enemies = spawn_enemy(g.enemies,e.x,e.y)
+			end
 			break
 		end
 	end
-	if not room_exists then
-		p1.room.name = "void"
+	if not g.room_exists then
+		g.p1.room.name = "void"
 	end
+	return g
 	--spawn_time = flr(rnd(2*30)) + 1*30
 end
 
 -- update the room when the player exits the screen
-function update_room()
+function update_room(g)
 
 	-- go to left room
-	if(p1.x <= 0 - p1.dx) then
-		world.x -= 1
-		p1.x = 128 - 2 * p1.w
-		refresh_room()
+	if(g.p1.x <= 0 - g.p1.dx) then
+		g.world.x -= 1
+		g.p1.x = 128 - 2 * g.p1.w
+		g = refresh_room(g)
 	end
 
 	-- go to right room
-	if(p1.x >= 128 - p1.w - p1.dx) then
-		world.x += 1
-		p1.x = p1.w
-		refresh_room()
+	if(g.p1.x >= 128 - g.p1.w - g.p1.dx) then
+		g.world.x += 1
+		g.p1.x = g.p1.w
+		g = refresh_room(g)
 	end
 
 	-- go to room above
-	if(p1.y <= 8 - p1.dy) then
-		world.y += 1
-		p1.y = 128 - 2 * p1.h
-		refresh_room()
+	if(g.p1.y <= 8 - g.p1.dy) then
+		g.world.y += 1
+		g.p1.y = 128 - 2 * g.p1.h
+		g = refresh_room(g)
 	end
 
 	-- go to room below
-	if(p1.y >= 128 - p1.h - p1.dy) then
-		world.y -= 1
-		p1.y = p1.h
-		refresh_room()
+	if(g.p1.y >= 128 - g.p1.h - g.p1.dy) then
+		g.world.y -= 1
+		g.p1.y = g.p1.h
+		g = refresh_room(g)
 	end
 
 	-- update current room
-	cur_room = world.x+world.y*world.width+1
+	g.cur_room = g.world.x+g.world.y*g.world.width+1
+
+	return g
 end
 
 function count_room_type(f,name)
@@ -361,23 +401,8 @@ function count_room_type(f,name)
 	return num
 end
 
--- spawn enemy function
-function spawn_enemy(x,y,spr,spd, w, h, is_boss)
-	local e = {}
-	e.x = x or 0
-	e.y = y or 0
-	e.dx = 0
-	e.dy = 0
-	e.w = w or 8
-	e.h = h or 8
-	e.spr = spr or 1
-	e.spd = spd or 0.4
-	e.is_boss = is_boss or false
-	add(enemies,e)
-end
-
 -- check if a map cell is solid
-function solid(x,y)
+function solid(blocks,x,y)
 	local spr = blocks[flr(x/8)+16*flr(y/8)+1]
 	if(spr ~= nil) then
 		
@@ -389,8 +414,8 @@ function solid(x,y)
 end
 
 -- check if the area is solid
-function solid_area(x,y,w,h)
-	return solid(x+w,y) or solid(x+w,y+h) or solid(x,y) or solid(x,y+h)
+function solid_area(blocks,x,y,w,h)
+	return solid(blocks,x+w,y) or solid(blocks,x+w,y+h) or solid(blocks,x,y) or solid(blocks,x,y+h)
 end
 
 -- check if two actors have collided
@@ -399,7 +424,7 @@ function act_collision(a1,a2)
 	return false
 end
 
-function update_shots(shots)
+function update_shots(blocks,shots)
 	for s in all(shots) do
 
 		-- update shots
@@ -416,11 +441,16 @@ function update_shots(shots)
 		if(s.x < -8 or s.x > 128 or s.y < -8 or s.y > 128) then
 			del(shots,s)
 		end
+
+		if solid_area(blocks,s.x,s.y,s.w,s.h) then
+			del(shots,s)
+		end
 	end
+	return shots
 end
 
 -- player keyboard commands
-function player_controls()
+function player_controls(is_reading,p1)
 	local spd = 1.5
 
 	-- move around
@@ -460,21 +490,23 @@ function player_controls()
 
 	-- shoot
 	if(btnp(4)) then
-		add(p1.shots,{x=p1.x+3,y=p1.y+3,spd=2,dir=p1.lastdir})
+		add(p1.shots,{x=p1.x+3,y=p1.y+3,w=1,h=1,spd=2,dir=p1.lastdir})
 	end
+
+	return p1
 end
 
 -- move the player, an npc or an enemy
-function move_act(act, is_solid)
+function move_act(blocks, act, is_solid)
 	
 	if(is_solid) then
-		if not solid_area(act.x+act.dx,act.y,act.w,act.h) then
+		if not solid_area(blocks,act.x+act.dx,act.y,act.w,act.h) then
 			act.x += act.dx
 		else
 			act.dx = 0
 		end
 
-		if not solid_area(act.x,act.y+act.dy,act.w,act.h) then
+		if not solid_area(blocks,act.x,act.y+act.dy,act.w,act.h) then
 			act.y += act.dy
 		else
 			act.dy = 0
@@ -483,10 +515,12 @@ function move_act(act, is_solid)
 		act.x += act.dx
 		act.y += act.dy
 	end
+
+	return act
 end
 
 -- ai for the enemy
-function enemy_ai(e)
+function enemy_ai(e,p1)
 	if e.x < p1.x - 1 then
 		e.dx = e.spd
 	elseif e.x > p1.x + 1 then
@@ -504,11 +538,11 @@ function enemy_ai(e)
 	end
 end
 
-function setup_game()
+function setup_game(g)
 
-	game_state = "game"
+	g.game_state = "game"
 
-	block_spr_table = {
+	g.block_spr_table = {
 		normal=1,
 		central=2,
 		sacrifice=3,
@@ -519,7 +553,7 @@ function setup_game()
 		boss=8,
 	}
 
-	map_spr_table = {
+	g.map_spr_table = {
 		normal=17,
 		central=18,
 		sacrifice=19,
@@ -534,9 +568,10 @@ function setup_game()
 	}
 
 	-- map is defaulted to close at start of game
-	is_map_open = false
+	g.is_map_open = false
 
-	menuitem(1, "toggle map", function() is_map_open = not is_map_open end)
+	-- add map toggle to pause screen
+	menuitem(1, "toggle map", function() g.is_map_open = not g.is_map_open end)
 
 	-- set the random seed number
 	--srand(0)
@@ -546,140 +581,159 @@ function setup_game()
 	--music(0, 0, 1)
 
 	-- initialize the game timer
-	timer = 0
+	g.timer = 0
 
 	-- initialize the player
-	p1 = {x=64, y=64, dx=0, dy=0, w=7, h=7, xdir="right", ydir="down", lastdir="right"}
-	p1.room = {name="central"}
-	p1.cur_health = 6
-	p1.max_health = 6
-	p1.spr = 33
-	p1.shots = {}
+	g.p1 = {x=64, y=64, dx=0, dy=0, w=7, h=7, xdir="right", ydir="down", lastdir="right"}
+	g.p1.room = {name="central"}
+	g.p1.cur_health = 6
+	g.p1.max_health = 6
+	g.p1.spr = 33
+	g.p1.shots = {}
 
 	-- initialize enemy table
-	enemies = {}
+	g.enemy_pool = {{x=0,y=0,enemies={{x=16,y=16}}}}
+	g.enemies = {}
+
+	g.enemy_shots = {}
 
 	-- initialize the starting floor
-	world = {x=0,y=0,width=3,height=3}
+	g.world = {x=0,y=0,width=3,height=3}
 
 	-- create a floor
-	floor = gen_floor()
-	while(validate_floor(floor) == false) do
-		floor = gen_floor()
+	g.floor = gen_floor(g)
+	while(validate_floor(g.floor) == false) do
+		g.floor = gen_floor(g)
 	end
 
 	-- if the floor is good, generate doors for the rooms
-	floor = gen_doors(floor)
+	g.floor = gen_doors(g,g.floor)
 
 	-- set up the blocks for the start room (rooms are 16w x 15h)
-	blocks = {}
-	for r in all(floor) do
-		if(r.x == world.x and r.y == world.y) then
-			blocks = r.blocks
+	g.blocks = {}
+	for r in all(g.floor) do
+		if(r.x == g.world.x and r.y == g.world.y) then
+			g.blocks = r.blocks
 		end
 	end
 
 	-- initialize the current room value
-	--cur_room = world.x+world.y*world.width+1
-	cur_room = 0
+	g.cur_room = 0
+
+	g = refresh_room(g)
+
+	return g
 end
 
-function draw_map()
-	for r in all(floor) do
-		--rectfill(r.x,r.y,r.x+8,r.y+8,7)
-		
-		spr(map_spr_table[r.name],64+r.x*8,64-r.y*8)
+function draw_map(g)
+	for r in all(g.floor) do
+		spr(g.map_spr_table[r.name],64+r.x*8,64-r.y*8)
 	end
 
-	if(timer % 30 < 15) then
+	if(g.timer % 30 < 15) then
 
 		color(7)
-		rect(64+world.x*8,64-world.y*8,64+world.x*8+7,64-world.y*8+7)
+		rect(64+g.world.x*8,64-g.world.y*8,64+g.world.x*8+7,64-g.world.y*8+7)
 		color(0)
 	end
 end
 
 function _init()
-	-- initialize game state
-	game_state = "title"
 
-	timer = 0
+	globals = {game_state="title",timer=0}
+	--local g = globals
+
+	-- initialize game state
+	--g.game_state = "title"
+
+	--g.timer = 0
 end 
 
 function _update()
+	local g = globals
+	g.timer+=1
 
-	timer = timer + 1
-
-	if(game_state == "title") then
+	if(g.game_state == "title") then
 		if(btnp(4)) then
-			setup_game()
+			g = setup_game(g)
 		end
 
-
-	elseif(game_state == "game") then
+	elseif(g.game_state == "game") then
 	
-		if not(is_map_open) then
+		if not(g.is_map_open) then
 
 			-- player controls
-			player_controls()
+			player_controls(g.is_reading,g.p1)
 
 			-- update player
-			move_act(p1, true)
+			g.p1 = move_act(g.blocks,g.p1, true)
 
-			update_shots(p1.shots)
+			g = update_room(g)
 
-			update_room()
+			g.p1.shots = update_shots(g.blocks,g.p1.shots)
 		end
 	end
 end
 
 function _draw()
+	local g = globals
+
 	cls()
 
-	if(game_state == "title") then
-		print("untitled roguelike")
-		print("v0.1.0",104,120)
+	if(g.game_state == "title") then
+		print("untitled roguelike", 32, 0)
+		print("press z to start", 36, 64)
+		print("v0.1.1",104,120)
 
-	elseif(game_state == "game") then
+	elseif(g.game_state == "game") then
 
 		-- draw gameplay
-		if not(is_map_open) then
+		if not(g.is_map_open) then
+
+			-- draw player shots
+			for s in all(g.p1.shots) do
+				--rectfill(s.x,s.y,s.x+3,s.y+3,7)
+				circfill(s.x,s.y,1,7)
+			end
+
+			-- draw enemies
+			for e in all(g.enemies) do
+				spr(e.spr,e.x,e.y)
+			end
+
+			-- draw enemy shots
+			for e in all(g.enemy_shots) do
+				circfill(e.x,e.y,1,7)
+			end
 
 			-- draw player
-			if(p1.xdir == "left") then
-				spr(p1.spr, p1.x, p1.y, 1, 1, true)
+			if(g.p1.xdir == "left") then
+				spr(g.p1.spr, g.p1.x, g.p1.y, 1, 1, true)
 			else
-				spr(p1.spr, p1.x, p1.y)
+				spr(g.p1.spr, g.p1.x, g.p1.y)
 			end
 
 		 	-- draw blocks
 		 	for i=1,(16*16) do
-		 		--local b = blocks[cur_room][i]
-		 		local b = blocks[i]
+		 		local b = g.blocks[i]
 		 		if(b ~= 0) then
 		 			spr(b,((i-1)*8)%128, 8*flr((i-1)/16))
 		 		end
 		 	end
 
 		 	-- draw health bar
-		 	for i=1,p1.cur_health do
+		 	for i=1,g.p1.cur_health do
 		 		rectfill((i-1)*4,0,(i-1)*4+1,7,8)
 		 	end
-		 	for i=p1.cur_health+1,p1.max_health do
+		 	for i=g.p1.cur_health+1,g.p1.max_health do
 		 		rectfill((i-1)*4,0,(i-1)*4+1,7,7)
 		 	end
 
 		 	--print(world.x .. "," .. world.y .. " " .. p1.room.name, 0, 0, 7)
 
-		 	-- draw shots
-			for s in all(p1.shots) do
-				--rectfill(s.x,s.y,s.x+3,s.y+3,7)
-				circfill(s.x,s.y,1,7)
-			end
-
 		-- draw the map
 	 	else
-	 		draw_map()
+	 		draw_map(g)
 		end
 	end
 end
@@ -701,14 +755,14 @@ __gfx__
 00000000500000051000000186566565500000055000000550007aa59999999977777777ffffffff888888880000000000000000000000000000000000000000
 0000000050000005100000015656656550077005500990055000aaaa59099095570770755ffffff5588888850000000000000000000000000000000000000000
 000000005555555511111111555555555557755555599555555555aa595995955757757555ffff55558888550000000000000000000000000000000000000000
-00000000000888000008880000088800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000008888800088888000888880000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000008f1f1f008888880088a8a80000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000008fffff00888888008888880000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000011111100111111002222220000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-000000000f1111f00f1111f008222280000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000cccc0000cccc0000888800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000c00c0000c00c0000800800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000888000008880090988800000777000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000008888800088888090988880007777700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000008f1f1f008888880098a8a80077070700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000008fffff00888888009888880077777700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000011111100111111009222220007777000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000000000f1111f00f1111f009222280070770700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000cccc0000cccc0000888800007777000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0000000000c00c0000c00c0000800800007007000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __gff__
 0001010101010101010000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
