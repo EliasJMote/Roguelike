@@ -1,4 +1,4 @@
-﻿Untitled Roguelike
+﻿(Untitled) Roguelike
 
 Copyright © 2019 Elias Mote
 Copyright © 2019 Roc Studios
@@ -22,6 +22,15 @@ II. Version History
 
 
 ------------------------
+V0.1.2 - Current version
+------------------------
+- Added random enemy generation
+- Added a demon enemy that shoots fireballs in 4 directions
+- Enemies can be killed permanently
+- Blood particles from enemy death
+- Added character animation
+
+------------------------
 V0.1.1
 ------------------------
 - Fixed map generation so that the map creation makes more sense
@@ -41,7 +50,7 @@ III. Requirements
 
 
 IV. Story
-
+?????????????????
 
 IV. Controls
 - Use up, down, left, right keys to move around.
@@ -58,7 +67,7 @@ Game jolt page: gamejolt.com/@Roc_Studios
 
 VI. Credits
 Created by: Elias Mote
-Tested by: Alfred Netz
+Tested by:
 Engine: Love2d
 Programming language: Lua
 Music: Pico-8
