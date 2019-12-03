@@ -1,4 +1,4 @@
-﻿(Untitled) Roguelike
+﻿(Untitled) Roguelike ver 0.2.0
 
 Copyright © 2019 Elias Mote
 Copyright © 2019 Roc Studios
@@ -22,7 +22,28 @@ II. Version History
 
 
 ------------------------
-V0.1.2 - Current version
+V0.2.0 - Current version
+------------------------
+
+------------------------------------------------- Updates -----------------------------------------------
+
+-- Refactored code, including adding some event driven programming. Eventual goal is to reduce the number
+of global variables, decouple functions and improve encapsulation.
+-- Updated the look of the secret and super secret rooms.
+-- Added some sprites, including money and the icon for the shop.
+-- Added some sfx.
+-- Added a minimap.
+-- Map now only shows rooms visited as well as rooms adjacent (this is temporary to the current room).
+-- Added a teleporter in the boss room that goes to the next floor.
+-- There is a bug with collision detection with the left and right side of the room (in the doorways). The
+bug is still there, but I reduced the distance for when the player moves to the next room to hide this bug.
+-- Player will lose health and die when attacked.
+-- Added coin pickup.
+-- Added number of coins to player HUD.
+-- Fixed the get_room_connections function so that validation can work properly.
+
+------------------------
+V0.1.2
 ------------------------
 - Added random enemy generation
 - Added a demon enemy that shoots fireballs in 4 directions
@@ -68,7 +89,7 @@ Game jolt page: gamejolt.com/@Roc_Studios
 VI. Credits
 Created by: Elias Mote
 Tested by:
-Engine: Love2d
+Engine: Pico-8
 Programming language: Lua
 Music: Pico-8
 Sound effects: Pico-8
