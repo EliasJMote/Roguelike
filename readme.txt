@@ -1,4 +1,4 @@
-﻿(Untitled) Roguelike ver 0.2.0
+﻿(Untitled) Roguelike ver 0.3.0
 
 Copyright © 2019 Elias Mote
 Copyright © 2019 Roc Studios
@@ -20,9 +20,27 @@ strictly prohibited, and a violation of copyright.
 
 II. Version History
 
+------------------------
+V0.3.0 - Current version
+------------------------
+------------------------------------------------- Updates -----------------------------------------------
+- Bombs are now in the game! Press the 'x' key to drop them. They can be used to blow up walls to secret
+rooms and damage enemies. Enemies also currently always drop a bomb.
+- Shops are now available. For the time being, shops have 3 bombs that each cost 3 coins each.
+- Coins are now fully working! There are pennies, nickels and dimes. Secret rooms currently have 4
+pennies, while super secret rooms have 4 nickels.
+- Some changes to enemies:
+-- Skeletons are present which shoot ice balls that slow the player temporarily.
+-- Mages shoot crescent magic which travels through walls (may change this to status effect instead).
+- The map and minimap have been changed so that they reveal diagonally adjacent rooms as well.
+- When defeated, the game asks if the player wants to restart the game using the 'x' key.
+- Map size has been toned down
+
+------------------------------------------------ Bug fixes ----------------------------------------------
+- Enemies will no longer appear in solid blocks
 
 ------------------------
-V0.2.0 - Current version
+V0.2.0
 ------------------------
 
 ------------------------------------------------- Updates -----------------------------------------------
