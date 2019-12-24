@@ -40,7 +40,8 @@ function _init()
         boss=8,
         shop=9,
         angel=2,
-        devil=2
+        devil=2,
+        treasure=2,
     }
 
     g.map_spr_table = {
@@ -55,14 +56,20 @@ function _init()
         angel=25,
         devil=26,
         shop=27,
-        error=28,
+        treasure=28,
+        error=29,
     }
 
     g.rainbow_colors = {8,9,10,11,3,12,1,2}
 
     g.enemy_table_name = {demon=35,skeleton=37,wizard=39}
     g.enemy_table_ai = {demon=1,skeleton=3,wizard=2}
-    g.object_table_name = {penny=15,nickel=31,dime=47,bomb=63}
+    g.object_table_name =   {
+                                penny=15,nickel=31,dime=47,bomb=63,
+                                ice_shot=66,stone_shot=67,fire_shot=68,poison_shot=69,
+                            }
+
+    g.powerup_pool = {"ice_shot"}
     g.object_table_price = {penny=0,nickel=0,dime=0,heart=3,soul_heart=5,bomb=3}
 
     -- create helper functions accessible from the global state
@@ -235,6 +242,16 @@ function _init()
         g.p1.bombs = 0
         g.p1.status = "normal"
         g.p1.status_timer = 0
+        g.p1.is_invincible = false
+        g.p1.inv_timer = 0
+
+        -- stats
+        g.p1.spd = 1.5
+        g.p1.shot_range = 56
+        g.p1.shot_atk = 1
+        g.p1.shot_cooldown = 15
+        g.p1.shot_statuses = {}
+        g.p1.luck = 0
 
         -- for debugging
         g.p1.current_status = 1
@@ -551,6 +568,9 @@ function _init()
         end
 
         -- generate a treasure room
+        while(count_room_type(f,"treasure") == 0) do
+            g.e_pool,g.o_pool,f = create_room(g,f,"treasure")
+        end
 
         -- generate a secret room
         while(count_room_type(f,"secret") == 0) do
@@ -592,6 +612,10 @@ function _init()
         
         for r in all(f) do
 
+            -- all rooms must be connected
+            if(count_room_connections(f,r) < 1) then
+                return false
+            end
             
             --[[
             if(r.name == "boss") then
@@ -917,6 +941,13 @@ function _init()
                         g.p1.money += 10
                     elseif(o.name == "bomb") then
                         g.p1.bombs += 1
+                    elseif(o.name == "ice_shot") then
+                        add(g.p1.shot_statuses,"chill")
+                        for p in all(g.powerup_pool) do
+                            if(p == o.name) then
+                                del(g.powerup_pool,p)
+                            end
+                        end
                     end
                     sfx(2)
                 end
@@ -927,16 +958,18 @@ function _init()
     end
 
     -- actor takes damage
-    function act_take_dmg(act,shots,shot)
-        if(act.status ~= "stone" and act.status ~= "invincible") then
+    function act_take_dmg(act,shots,shot,is_enemy)
+        if(act.status ~= "stone" and not act.is_invincible) then
             if(shot ~= nil) then
                 if(shot.pierce ~= true) del(shots,shot)
-                if(shot.status ~= nil) act.status = shot.status
+                if(shot.status ~= nil and act.status == "normal") act.status = shot.status
             end
-            act.cur_health -= 1
+            act.cur_health -= shot.atk or 1
+            act.is_invincible = true
             sfx(1)
             if(act.cur_health <= 0) then
                 create_event({name="create particles",x=act.x,y=act.y,w=act.w,h=act.h})
+                if(is_enemy) create_event({name="enemy death", enemy=act})
             end
         end
         return act,shots
@@ -964,7 +997,12 @@ function _init()
 
             -- if a shot hits a block
             if solid_area(blks,s.x,s.y,s.w,s.h) and not s.spectral then
-                create_event({name="create particles",x=s.x,y=s.y,w=s.w,h=s.h,clr=7})
+                local clr = 7
+                if(s.status == "chill") clr = 12
+                if(s.status == "fire") clr = 8
+                if(s.status == "poison") clr = 11
+                if(s.status == "stone") clr = 5
+                create_event({name="create particles",x=s.x,y=s.y,w=s.w,h=s.h,clr=clr})
                 del(shots,s)
                 sfx(1)
             end
@@ -1000,7 +1038,7 @@ function _init()
                 if(e.timer == 60) then
 
                     for i=0,3 do
-                        add(enemy_shots,{x=e.x,y=e.y,w=8,h=8,spd=2,angle=i*90,name="fireball"})
+                        add(enemy_shots,{x=e.x,y=e.y,w=8,h=8,spd=2,angle=i*90,name="fireball",atk=1})
                     end
 
                 end
@@ -1009,7 +1047,7 @@ function _init()
 
 
                     for i=0,3 do
-                        add(enemy_shots,{x=e.x,y=e.y,w=8,h=8,spd=2,angle=i*90,name="crescent",spectral=true})
+                        add(enemy_shots,{x=e.x,y=e.y,w=8,h=8,spd=2,angle=i*90,name="crescent",spectral=true,atk=1})
                     end
 
                     local dist_x = p1.x - e.x
@@ -1024,7 +1062,7 @@ function _init()
             elseif(e.ai == 3) then
                 if(e.timer == 60) then
                     for i=0,3 do
-                        add(enemy_shots,{x=e.x,y=e.y,w=8,h=8,spd=2,angle=i*90,name="iceball",status="chill"})
+                        add(enemy_shots,{x=e.x,y=e.y,w=8,h=8,spd=2,angle=i*90,name="iceball",status="chill",atk=1})
                     end
 
                 end
@@ -1039,17 +1077,17 @@ function _init()
 
             elseif(e.timer >= 30 and e.timer < 60) then
                 if e.x < p1.x - 1 then
-                    e.dx = e.spd
+                    e.dx = spd
                 elseif e.x > p1.x + 1 then
-                    e.dx = -e.spd
+                    e.dx = -spd
                 else
                     e.dx = 0
                 end
 
                 if e.y < p1.y - 1 then
-                    e.dy = e.spd
+                    e.dy = spd
                 elseif e.y > p1.y + 1 then
-                    e.dy = -e.spd
+                    e.dy = -spd
                 else
                     e.dy = 0
                 end
@@ -1116,7 +1154,11 @@ function _init()
         e.ai = g.enemy_table_ai[e.name]
         e.is_boss = is_boss or false
         e.timer = 0
-        e.cur_health = 1
+        e.cur_health = 3
+        e.status = "normal"
+        e.status_timer = 0
+        e.is_invincible = false
+        e.inv_timer = 0
 
         add(enemies,e)
 
@@ -1130,12 +1172,25 @@ function _init()
 
         -- player shots hitting enemy
         for s in all(g.p1.shots) do
-            if(act_col(s,e)) then
-                create_event({name="enemy death", enemy=e})
-                sfx(1)
-                if(s.pierce ~= true) then
-                    del(g.p1.shots,s)
-                end
+            if(act_col(s,e)) act_take_dmg(e,g.p1.shots,s,true)
+        end
+
+        -- cure status conditions
+        if(e.status ~= "normal") then
+            e.status_timer += 1
+            if(e.status_timer >= 60) then
+                e.status = "normal"
+                e.status_timer = 0
+            end
+        else
+            e.status_timer = 0
+        end
+
+        if(e.is_invincible) then
+            e.inv_timer+=1
+            if(e.inv_timer >= 10) then
+                e.inv_timer=0
+                e.is_invincible = false
             end
         end
 
@@ -1149,6 +1204,7 @@ function _init()
 
         local player = p1
 
+        -- if the 'x' key is pressed
         if(btnp(5)) then 
             if(g.debug) then
                 --globals.p1.current_status = (g.p1.current_status + 1) % #g.status_ailments + 1
@@ -1156,6 +1212,8 @@ function _init()
                 g.p1.current_status += 1
                 g.p1.status = g.status_ailments[g.p1.current_status % #g.status_ailments + 1]
             else
+
+                -- drop a bomb at the player's current pos
                 if(g.p1.bombs >= 1) then
                     add(g.bombs,{x=g.p1.x,y=g.p1.y,timer=0})
                     g.p1.bombs -= 1
@@ -1171,7 +1229,7 @@ function _init()
 
                 
                 player.num = 1
-                local spd = 1.5
+                local spd = g.p1.spd
                 if(p1.status == "chill") spd /= 2
 
                 -- horizontal movement
@@ -1204,7 +1262,7 @@ function _init()
 
             -- stop horizontal movement
             if not btn(0) and not btn(1) then
-                if g.p1.dx ~= 0 then
+                if p1.dx ~= 0 then
                     player.dx = 0
                     create_event({name="stop moving horizontally",player=player})
                 end
@@ -1212,16 +1270,36 @@ function _init()
             
             -- stop vertical movement
             if not btn(2) and not btn(3) then
-                if g.p1.dy ~= 0 then
+                if p1.dy ~= 0 then
                     player.dy = 0
                     create_event({name="stop moving vertically",player=player})
                 end
             end
 
             -- shoot
-            if(btn(4) and g.p1.can_shoot == true) then
-                add(g.p1.shots,{x=p1.x+3,y=p1.y+3,w=2,h=2,spd=2,angle=player.angle,spectral=false,dist=56,x_init=p1.x,y_init=p1.y})
-                g.p1.can_shoot = false
+            if(btn(4) and p1.can_shoot == true) then
+                local shot_status = nil
+                for s in all(g.p1.shot_statuses) do
+                    -- chance of player shot being special based on luck
+                    if(p1.luck >= flr(rnd(4))) then
+                        shot_status = s
+                        break
+                    end
+                end
+
+                add(p1.shots, {
+                                    x=p1.x+3,y=p1.y+3,w=2,h=2,
+                                    angle=player.angle,
+                                    x_init=p1.x,
+                                    y_init=p1.y,
+                                    spd=2,
+                                    dist=p1.shot_range,
+                                    spectral=false,
+                                    status = shot_status,
+                                    atk=p1.shot_atk
+                                }
+                    )
+                p1.can_shoot = false
                 sfx(0)
                 --create_event({name="activate polling",act=p1})
             end
@@ -1234,7 +1312,7 @@ function _init()
     function update_player(p1)
         -- recharge the player's shot ability
         if(p1.can_shoot == false) then
-            if(p1.shot_timer >= 15) then
+            if(p1.shot_timer >= g.p1.shot_cooldown) then
                 p1.shot_timer = 0
                 p1.can_shoot = true
             else
@@ -1243,7 +1321,7 @@ function _init()
         end
 
         -- cure status conditions
-        if(status ~= "normal") then
+        if(p1.status ~= "normal") then
             p1.status_timer += 1
             if(p1.status_timer >= 60) then
                 p1.status = "normal"
@@ -1252,6 +1330,15 @@ function _init()
         else
             p1.status_timer = 0
         end
+
+        if(p1.is_invincible) then
+            p1.inv_timer+=1
+            if(p1.inv_timer >= 30) then
+                p1.inv_timer=0
+                p1.is_invincible = false
+            end
+        end
+
         return p1
     end
 
@@ -1333,12 +1420,20 @@ function _init()
             add(objects,{x=128-8-16,y=32+16,w=8,h=8,name=obj_name})
             add(objects,{x=8+16,y=128-16-16,w=8,h=8,name=obj_name})
             add(objects,{x=128-8-16,y=128-16-16,w=8,h=8,name=obj_name})
-        end
 
-        if(room_name == "shop") then
+        elseif(room_name == "shop") then
             add(objects,{x=8+34,y=52+16,w=8,h=8,name="bomb"})
             add(objects,{x=8+50,y=52+16,w=8,h=8,name="bomb"})
             add(objects,{x=8+66,y=52+16,w=8,h=8,name="bomb"})
+        
+        elseif(room_name == "treasure") then
+
+            if(#g.powerup_pool >= 1) then
+                -- pick a powerup from the powerup pool
+                local powerup = flr(rnd(#g.powerup_pool)) + 1
+
+                add(objects,{x=8+50,y=52+16,w=8,h=8,name=g.powerup_pool[powerup]})
+            end
         end
 
         return {x=x,y=y,objects=objects}
@@ -1376,7 +1471,6 @@ function _update()
     button_listener()
 
 	g.timer = (g.timer + 1) % 32000
-
 	
     if(g.game_state == "opening_credits") then
         if(g.timer < 60 and btn(4)) g.timer = 60
@@ -1432,7 +1526,7 @@ function _update()
             end
 
             for enemy in all(g.enemies) do
-                if(act_col(enemy,e_aoe)) create_event({name = "enemy death",enemy=enemy})
+                if(act_col(enemy,e_aoe)) act_take_dmg(enemy,{},{atk=2},true) --create_event({name = "enemy death",enemy=enemy})
             end
         end
 
@@ -1449,8 +1543,16 @@ function _draw()
     color(7)
 
     if(g.game_state == "opening_credits") then
+        -- show the roc studios logo
         sspr(32*3, 32*3, 32, 32, 32, 16, 64, 64)
         sspr(32*2, 32*3+16, 32, 16, 32, 16+64, 64, 32)
+
+        -- player can skip the logo
+        if(g.timer < 60 and btnp(4)) then
+            g.timer = 60
+        end
+
+        -- screen wipe after 60 frames
         if(g.timer >= 60) then
             rectfill(0, 0, 128, (g.timer-60)*5, 0)
             color(7)
@@ -1459,18 +1561,19 @@ function _draw()
 	elseif(g.game_state == "title") then
 		print("untitled roguelike", 32, 0)
 		print("press z to start", 36, 64)
-		print("v0.3.0",104,120)
+		print("v0.4.0",104,120)
 
     elseif(g.game_state == "how_to_play") then
         print("how to play", 48, 0)
         print("use directional keys to move", 0, 16)
-        print("around", 0, 24)
-        print("press z to shoot", 0, 32)
-        print("press x to drop bombs", 0, 40)
-        print("coins can be used to buy items", 0, 48)
-        print("in shops", 0, 56)
-        print("bombs can be used to reveal", 0, 64)
-        print("hidden walls.", 0, 72)
+        print("around.", 0, 24)
+        print("press z to shoot.", 0, 32)
+        print("press x to drop bombs.", 0, 40)
+        print("coins can be used to buy items", 0, 56)
+        print("in shops.", 0, 64)
+        print("bombs can be used to reveal", 0, 80)
+        print("hidden rooms by destroying the", 0, 88)
+        print("middle of some walls.", 0, 96)
         print("press z to start game", 30, 120)
 
 	elseif(g.game_state == "game") then
@@ -1484,12 +1587,26 @@ function _draw()
 
 		-- draw player shots
 		for s in all(g.p1.shots) do
-			circfill(s.x,s.y,s.w/2,7)
+            local clr = 7
+            if(s.status == "fire") clr = 8
+            if(s.status == "poison") clr = 11
+            if(s.status == "chill") clr = 12
+            if(s.status == "stone") clr = 5
+			circfill(s.x,s.y,s.w/2,clr)
 		end
 
 		-- draw enemies
 		for e in all(g.enemies) do
-			spr(e.spr+flr(g.timer/10)%2,e.x,e.y)
+            if(e.is_invincible == false or g.timer % 2 == 0) then
+                if(e.status == "chill") then
+                    --print(e.status,0,8)
+                    for c=0,15 do
+                        pal(c,12)
+                    end
+                end
+    			spr(e.spr+flr(g.timer/10)%2,e.x,e.y)
+                pal()
+            end
 		end
 
 		-- draw enemy shots
@@ -1588,32 +1705,34 @@ function _draw()
 
         -- draw player
         if(g.p1.cur_health > 0) then
-            if(g.p1.status == "stone") then
-                pal(1,5)
-                pal(8,5)
-                pal(12,6)
-                pal(15,7)
-                if(g.p1.xdir == "left") then
-                    spr(g.p1.spr, g.p1.x, g.p1.y, 1, 1, true)
+            if(g.p1.is_invincible == false or g.timer % 2 == 0) then
+                if(g.p1.status == "stone") then
+                    pal(1,5)
+                    pal(8,5)
+                    pal(12,6)
+                    pal(15,7)
+                    if(g.p1.xdir == "left") then
+                        spr(g.p1.spr, g.p1.x, g.p1.y, 1, 1, true)
+                    else
+                        spr(g.p1.spr, g.p1.x, g.p1.y)
+                    end
                 else
-                    spr(g.p1.spr, g.p1.x, g.p1.y)
-                end
-            else
-                if(g.p1.status == "chill") then
-                    pal(8,12)
-                    pal(15,12)
-                elseif(g.p1.status == "poison") then
-                    pal(1,3)
-                    pal(8,3)
-                    pal(12,3)
-                    pal(15,11)
-                end
-                if(g.p1.xdir == "left") then
-                    spr(g.p1.spr+flr(g.timer/10)%2, g.p1.x, g.p1.y, 1, 1, true)
-                else
-                    spr(g.p1.spr+flr(g.timer/10)%2, g.p1.x, g.p1.y)
-                end
+                    if(g.p1.status == "chill") then
+                        pal(8,12)
+                        pal(15,12)
+                    elseif(g.p1.status == "poison") then
+                        pal(1,3)
+                        pal(8,3)
+                        pal(12,3)
+                        pal(15,11)
+                    end
+                    if(g.p1.xdir == "left") then
+                        spr(g.p1.spr+flr(g.timer/10)%2, g.p1.x, g.p1.y, 1, 1, true)
+                    else
+                        spr(g.p1.spr+flr(g.timer/10)%2, g.p1.x, g.p1.y)
+                    end
 
+                end
             end
         else
             rectfill(24,64,96,76,0)
@@ -1629,6 +1748,21 @@ function _draw()
 
     elseif g.game_state == "map" then
         draw_map(g)
+
+    elseif g.game_state == "stats" then
+        rect(0,0,127,127,7)
+        print("stats",56,4)
+        print("atk: " .. g.p1.shot_atk,32,48)
+        print("shot cooldown: " .. g.p1.shot_cooldown,32,56)
+        print("shot range: " .. g.p1.shot_range,32,64)
+        print("speed: " .. g.p1.spd,32,72)
+        print("luck: " .. g.p1.luck,32,80)
+        --spr(g.object_table_name["ice_shot"],4,116)
+        for p in all(g.p1.shot_statuses) do
+            if(p == "chill") then
+                spr(g.object_table_name["ice_shot"],4,116)
+            end
+        end
 	end
 
     --print(g.timer,0,0,7)
@@ -1643,14 +1777,14 @@ __gfx__
 00000000565665651c1cc1c180800808c0c00c0c89ab3c12e8e88e8ec0c00c0c505005053b3bb3b3511111150805656550500505565005655056650509900990
 000000005566665511cccc11880000881100001189ab3c12ee8888eecc0000cc5500005533bbbb33511111158656656555055055556556555505505509999990
 000000005555555511111111888888882222222289ab3c12eeeeeeeecccccccc5555555533333333551111555656656555500555555665555550055500999900
-0000000055555555111111115555555557777755599999557755555559999995577777755aaaaaa5855555585555b55500000000000000000000000000666600
-000000005000000510000001508800057000077590000995777000059999999977777777a0ffff0a80888808500bbb0500000000000000000000000006666660
-0000000050000005100000015086508550007705500099055777000599999999777777775aaaaaa55888888550b0b00500000000000000000000000006600660
-000000005000000510000001500565655007700550099005507770059909909977077077ff0ff0ff8808808850b0b00500000000000000000000000006066660
-000000005000000510000001580565655007700550099005500777a59909909977077077ff0ff0ff88088088500bbb0500000000000000000000000006066660
-00000000500000051000000186566565500000055000000550007aa59999999977777777ffffffff888888885000b0b500000000000000000000000006600660
-0000000050000005100000015656656550077005500990055000aaaa59099095570770755ffffff5588888855000b0b500000000000000000000000006666660
-000000005555555511111111555555555557755555599555555555aa595995955757757555ffff5555888855555bbb5500000000000000000000000000666600
+0000000055555555111111115555555557777755599999557755555559999995577777755aaaaaa5855555585555b55555555555000000000000000000666600
+000000005000000510000001508800057000077590000995777000059999999977777777a0ffff0a80888808500bbb0550000005000000000000000006666660
+0000000050000005100000015086508550007705500099055777000599999999777777775aaaaaa55888888550b0b00550444405000000000000000006600660
+000000005000000510000001500565655007700550099005507770059909909977077077ff0ff0ff8808808850b0b00554aaaa45000000000000000006066660
+000000005000000510000001580565655007700550099005500777a59909909977077077ff0ff0ff88088088500bbb05544aa445000000000000000006066660
+00000000500000051000000186566565500000055000000550007aa59999999977777777ffffffff888888885000b0b554444445000000000000000006600660
+0000000050000005100000015656656550077005500990055000aaaa59099095570770755ffffff5588888855000b0b554444445000000000000000006666660
+000000005555555511111111555555555557755555599555555555aa595995955757757555ffff5555888855555bbb5555555555000000000000000000666600
 00000000000888000008880090988800000888000007770000077700000111000001110000000000000000000000000000777700007777000007700000aaaa00
 00000000008888800088888090988880909888800077777000777770001111100011111000000000000000000000000007c77c7007000070070000700aaaaaa0
 0000000008f1f1f008f1f1f0098a8a80909a8a80077070700770707001181810011818100000000000000000000000007c7777c700077000000000000aa00aa0
@@ -1667,14 +1801,14 @@ __gfx__
 000000000f1111f00f1111f089999998aaa00000a000000a1cccccc1000000000000000000000000000000000000000000000000000000000000000001111110
 0000000000cccc0000cccc00089999800aaa000aa000000a01cccc10000000000000000000000000000000000000000000000000000000000000000001111110
 0000000000000c0000c0000000888800000aaaa00a0000a000111100000000000000000000000000000000000000000000000000000000000000000000111100
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00222ccc0088899900222cc0005556600088899000333bb000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0022cc200088998002c2cccc056566660898999903b3bbbb00000000000000000000000000000000000000000000000000000000000000000000000000000000
+0022cccc008899990222cccc05556666088899990333bbbb00000000000000000000000000000000000000000000000000000000000000000000000000000000
+0022cc200088998022022cc0550556608808899033033bb000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0022cccc008899990022222000555550008888800033333000000000000000000000000000000000000000000000000000000000000000000000000000000000
+02222c22088889882222000255550005888800083333000300000000000000000000000000000000000000000000000000000000000000000000000000000000
+02222222088888880220020005500500088008000330030000000000000000000000000000000000000000000000000000000000000000000000000000000000
+22220022888800880022202000555050008880800033303000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000

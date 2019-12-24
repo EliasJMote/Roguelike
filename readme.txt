@@ -1,4 +1,4 @@
-﻿(Untitled) Roguelike ver 0.3.0
+﻿(Untitled) Roguelike ver 0.4.0
 
 Copyright © 2019 Elias Mote
 Copyright © 2019 Roc Studios
@@ -21,7 +21,20 @@ strictly prohibited, and a violation of copyright.
 II. Version History
 
 ------------------------
-V0.3.0 - Current version
+V0.4.0 - Current version
+------------------------
+------------------------------------------------- Updates -----------------------------------------------
+- Added power-up sprites for movement speed, status shots (fire, ice, poison, stone)
+- Created stats screen
+- Treasure rooms created! Treasures such as powerups will be randomly selected from an available pool.
+- Ice shot powerup can be found in a treasure room. The shot will occasionally shoot ice shots depending
+on the player's current luck stat.
+- Ice shots will slow enemies down.
+- Enemies are given real health values now instead of dying in one hit from anything.
+- Players and enemies are given temporary invincibility after being hit.
+
+------------------------
+V0.3.0
 ------------------------
 ------------------------------------------------- Updates -----------------------------------------------
 - Bombs are now in the game! Press the 'x' key to drop them. They can be used to blow up walls to secret
@@ -94,6 +107,7 @@ IV. Story
 IV. Controls
 - Use up, down, left, right keys to move around.
 - Use the 'z' key to shoot bullets
+- Use the 'x' key to drop bombs.
 
 V. Contact
 Contact me with questions or comments at rulerofchaosstudios@gmail.com
@@ -106,7 +120,7 @@ Game jolt page: gamejolt.com/@Roc_Studios
 
 VI. Credits
 Created by: Elias Mote
-Tested by:
+Tested by: Dred4170
 Engine: Pico-8
 Programming language: Lua
 Music: Pico-8
