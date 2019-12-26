@@ -5,31 +5,32 @@ __lua__
 function _init()
 
 	-- initialize the global variable that holds game state data
-	globals = {game_state="opening_credits",timer=0,events={},debug=false}
+	glbls = {game_state="opening_credits",timer=0,events={},debug=false}
     h = {}
 
-    local g = globals
+    local g = glbls
 
-    -- create a save slot
-    local is_save_slot_created = cartdata("roguelike")
+    -- cre a save slot
+    --[[
+    local is_save_slot_cred = cartdata("roguelike")
     if g.debug then
-        if is_save_slot_created then
-            printh("save slot created!")
+        if is_save_slot_cred then
+            printh("save slot cred!")
         else
-            printh("save slot was not created!")
+            printh("save slot was not cred!")
         end
     end
-    is_save_slot_created = nil
+    is_save_slot_cred = nil]]
 
-    g.room_layouts = {}
-    g.room_layouts.normal = {
+    g.rm_layouts = {}
+    g.rm_layouts.normal = {
                                 {{i=6,j=4},{i=6,j=12},{i=12,j=12},{i=12,j=4}},
                                 {{i=8,j=7},{i=8,j=8},{i=9,j=7},{i=9,j=8}}
                             }
 
     g.status_ailments = {"normal","stone","chill","poison"}
 
-    g.block_spr_table = {
+    g.blk_spr_table = {
         normal=1,
         central=2,
         sacrifice=3,
@@ -64,25 +65,25 @@ function _init()
 
     g.enemy_table_name = {demon=35,skeleton=37,wizard=39}
     g.enemy_table_ai = {demon=1,skeleton=3,wizard=2}
-    g.object_table_name =   {
+    g.obj_table_name =   {
                                 penny=15,nickel=31,dime=47,bomb=63,
                                 ice_shot=66,stone_shot=67,fire_shot=68,poison_shot=69,
                             }
 
     g.powerup_pool = {"ice_shot"}
-    g.object_table_price = {penny=0,nickel=0,dime=0,heart=3,soul_heart=5,bomb=3}
+    g.obj_table_price = {penny=0,nickel=0,dime=0,heart=3,soul_heart=5,bomb=3}
 
-    -- create helper functions accessible from the global state
+    -- cre helper functions accessible from the global state
 
     ----------------------------------------------- event system ----------------------------------------------
 
-    -- create a new event. this function should be accessible to each function. the global event creator will help isolate functions from each other.
-    function create_event(event)
-        local g = globals
+    -- cre a new event. this function should be accessible to each function. the global event creator will help isolate functions from each other.
+    function cre_event(event)
+        local g = glbls
         add(g.events,event)
     end
 
-    function update_events(g)
+    function upd_events(g)
 
         -- make sure the event queue exists before trying to access it!
         if(g.events ~= nil) then
@@ -91,31 +92,12 @@ function _init()
 
                 local event = g.events[1]
 
-                -- take an action based on the event's name
-                if event.name == "button press" then
-                    -- title menu
-                    if(g.game_state == "title") then
-                        if event.i == 4 then
-                            g.game_state = "how_to_play"
-                            sfx(2)
-                        end
-
-                    -- how to play
-                    elseif(g.game_state == "how_to_play") then
-                        if event.i == 4 then
-                            g = create_game(g)
-                            sfx(2)
-                        end
-                        
-                    end
-                end
-
                 -- game events
                 if g.game_state == "game" then
                     if event.name == "move actor" then
                         if(event.player.num == 1) then
                             g.p1 = move_act(g.blks, event.player, true, true)
-                            g = update_room(g)
+                            g = upd_rm(g)
                         end
 
                     elseif event.name == "stop moving horizontally" then
@@ -128,34 +110,24 @@ function _init()
                             g.p1 = move_act(g.blks,event.player, true, true)
                         end
 
-                    elseif event.name == "shoot" then
+                    elseif event.name == "go to next flr" then
+                        g = go_to_next_flr(g)
 
-                    elseif event.name == "take damage" then
-
-                    elseif event.name == "get health" then
-
-                    elseif event.name == "go to next floor" then
-                        g = go_to_next_floor(g)
-
-                    elseif event.name == "create particles" then
-                        g.particles = create_particles(g.particles,event.x+event.w/2,event.y+event.h/2,event.r,event.clr)
-
-                    elseif event.name == "remove object" then
-                        remove_obj_from_pool(g.o_pool,event.obj,g.world.x,g.world.y)
-                        del(g.objects,event.obj)
+                    elseif event.name == "cre particles" then
+                        g.particles = cre_particles(g.particles,event.x+event.w/2,event.y+event.h/2,event.r,event.clr)
 
                     elseif event.name == "enemy death" then
                         local e = event.enemy
-                        g.e_pool = rm_enemy_from_pool(g.e_pool,e,g.world.x,g.world.y)
+                        g.e_pool = rm_enemy_from_pool(g.e_pool,e,g.wrld.x,g.wrld.y)
                         del(g.enemies,e)
                         local o = {x=e.x,y=e.y,w=8,h=8,name="bomb"}
-                        g.objects = spawn_object(g.objects,o.x,o.y,o.w,o.h,o.name,g)
+                        g.objs = spawn_obj(g.objs,o.x,o.y,o.w,o.h,o.name,g)
                         for r in all(g.o_pool) do
-                            if(r.x == g.world.x and r.y == g.world.y) then
-                                add(r.objects,o)
+                            if(r.x == g.wrld.x and r.y == g.wrld.y) then
+                                add(r.objs,o)
                             end
                         end
-                        create_event({name="create particles",x=e.x,y=e.y,w=e.w,h=e.h})
+                        cre_event({name="cre particles",x=e.x,y=e.y,w=e.w,h=e.h})
                     end
                 end
 
@@ -168,51 +140,33 @@ function _init()
         return g
     end
 
-    --------------------------------------------- event listeners ---------------------------------------------
-
-    function button_listener()
-        for p=0,0 do
-            for i=0,5 do
-                if btnp(i,p) then
-                    create_event({name="button press",i=i,p=p})
-                end
-            end
-            for i=0,5 do
-                if btn(i,p) then
-                    create_event({name="button held",i=i,p=p})
-                    break
-                end
-            end
-        end
-    end
-
     -------------------------------------------- new game creation --------------------------------------------
-    function create_game(g)
+    function cre_game(g)
 
         g.game_state = "game"
 
-        -- initialize the object table
-        g.objects = {}
+        -- initialize the obj table
+        g.objs = {}
 
         -- initialize the particle system
         g.particles = {}
 
         -- add map toggle to pause screen
         local function map_toggle()
-            if globals.game_state ~= "map" then 
-                globals.game_state = "map" 
+            if glbls.game_state ~= "map" then 
+                glbls.game_state = "map" 
             else 
-                globals.game_state = "game"
+                glbls.game_state = "game"
             end
         end
         menuitem(1, "toggle map", map_toggle)
 
         -- add stats toggle to pause screen
         local function stats_toggle()
-            if globals.game_state ~= "stats" then 
-                globals.game_state = "stats" 
+            if glbls.game_state ~= "stats" then 
+                glbls.game_state = "stats" 
             else 
-                globals.game_state = "game"
+                glbls.game_state = "game"
             end
         end
         menuitem(2, "toggle stats", stats_toggle)
@@ -231,7 +185,7 @@ function _init()
 
         -- initialize the player
         g.p1 = {x=64, y=64, dx=0, dy=0, w=7, h=7, xdir="right", ydir="down", angle=0}
-        g.p1.room = {name="central"}
+        g.p1.rm = {name="central"}
         g.p1.cur_health = 6
         g.p1.max_health = 6
         g.p1.spr = 33
@@ -257,28 +211,28 @@ function _init()
         g.p1.current_status = 1
         --g.p1.status = g.status_ailments[g.p1.current_status]
 
-        -- initialize the starting floor
-        g.world = {x=0,y=0,level=0}
+        -- initialize the starting flr
+        g.wrld = {x=0,y=0,level=0}
 
         g.e_pool = {}
         g.o_pool = {}
 
-        -- create a floor
-        g.e_pool,g.o_pool,g.floor = gen_floor(g)
+        -- cre a flr
+        g.e_pool,g.o_pool,g.flr = gen_flr(g)
         
-        while(validate_floor(g.floor,g) == false) do
+        while(validate_flr(g.flr,g) == false) do
             g.e_pool = {}
             g.o_pool = {}
-            g.e_pool,g.o_pool,g.floor = gen_floor(g)
+            g.e_pool,g.o_pool,g.flr = gen_flr(g)
         end
 
-        -- if the floor is good, generate doors for the rooms
-        g.floor = gen_doors(g,g.floor)
+        -- if the flr is good, generate doors for the rms
+        g.flr = gen_doors(g,g.flr)
 
-        -- set up the blks for the start room (rooms are 16w x 15h)
+        -- set up the blks for the start rm (rms are 16w x 15h)
         g.blks = {}
-        for r in all(g.floor) do
-            if(r.x == g.world.x and r.y == g.world.y) then
+        for r in all(g.flr) do
+            if(r.x == g.wrld.x and r.y == g.wrld.y) then
                 g.blks = r.blks
             end
         end
@@ -290,106 +244,82 @@ function _init()
         g.enemies = {}
         g.enemy_shots = {}
 
-        g = refresh_room(g)
+        g = refresh_rm(g)
 
         return g
     end
 
-    ----------------------------------------------- floor system ----------------------------------------------
+    ----------------------------------------------- flr system ----------------------------------------------
 
-    function go_to_next_floor(g)
+    function go_to_next_flr(g)
 
-        -- verify that we actually want to go to the next floor (i.e. an extra event hasn't been added by mistake)
-        -- since the central room is always (0,0) and it will never go to the next floor, this can be used to make
-        -- sure we only change floors once
-        if((g.world.x ~= 0 and g.world.y ~= 0) or (g.world.x == 0 and g.world.y ~= 0) or (g.world.x ~= 0 and g.world.y == 0)) then
-            g.world.x = 0
-            g.world.y = 0
-            g.world.level += 1
+        -- verify that we actually want to go to the next flr (i.e. an extra event hasn't been added by mistake)
+        -- since the central rm is always (0,0) and it will never go to the next flr, this can be used to make
+        -- sure we only change flrs once
+        if((g.wrld.x ~= 0 and g.wrld.y ~= 0) or (g.wrld.x == 0 and g.wrld.y ~= 0) or (g.wrld.x ~= 0 and g.wrld.y == 0)) then
+            g.wrld.x = 0
+            g.wrld.y = 0
+            g.wrld.level += 1
             g.e_pool = {}
             g.o_pool = {}
             g.map_explored = {{x=0,y=0}}
-            g.e_pool,g.o_pool,g.floor = gen_floor(g)
-            while(validate_floor(g.floor,g) == false) do
+            g.e_pool,g.o_pool,g.flr = gen_flr(g)
+            while(validate_flr(g.flr,g) == false) do
                 g.e_pool = {}
                 g.o_pool = {}
-                g.e_pool,g.o_pool,g.floor = gen_floor(g)
+                g.e_pool,g.o_pool,g.flr = gen_flr(g)
             end
-            g.floor = gen_doors(g,g.floor)
-            g = refresh_room(g)
+            g.flr = gen_doors(g,g.flr)
+            g = refresh_rm(g)
         end
         return g
     end
 
-    function create_possible_room_connections(r,name)
+    function cre_possible_rm_connections(r,name)
         return {{name=name,x=r.x+1,y=r.y},
                 {name=name,x=r.x-1,y=r.y},
                 {name=name,x=r.x,y=r.y+1},
                 {name=name,x=r.x,y=r.y-1}}
     end
 
-    -- create the doors for each room
+    -- cre the doors for each rm
     function gen_doors(g,f)
 
-        printh("yes")
-
-        -- for each room on the floor
+        -- for each rm on the flr
         for r in all(f) do
             
-            -- each room has a different type of block
-            local blk_num = g.block_spr_table[r.name]
+            -- each rm has a different type of block
+            local blk_num = g.blk_spr_table[r.name]
 
             -- generate doors
             for i=3*16+1,16*16 do
                 if((i%16 == 1 or i%16 == 0 or flr(i/16) == 3
                     or flr(i/16) == 15)) then
 
-                        -- if there's a room above us
-                        if(check_room_exists(f,{x=r.x,y=r.y+1})) then
-                            if(i == 3*16+8 or i == 3*16+9) then
-                                local adj_room = get_room(f,{x=r.x,y=r.y+1})
-                                if(adj_room.name == "secret" or adj_room.name == "super_secret" or r.name == "secret" or r.name == "super_secret") then
-                                    r.blks[i] = 10
-                                else
-                                    r.blks[i] = 0
-                                end
+                        local function setup_secret_blks(adj_rm,i)
+                            if(adj_rm.name == "secret" or adj_rm.name == "super_secret" or r.name == "secret" or r.name == "super_secret") then
+                                r.blks[i] = 10
+                            else
+                                r.blks[i] = 0
                             end
                         end
 
-                        -- if there's a room to the left of us
-                        if(check_room_exists(f,{x=r.x-1,y=r.y})) then
-                            if(i == 8*16+1  or i == 9*16+1 ) then
-                                local adj_room = get_room(f,{x=r.x-1,y=r.y})
-                                if(adj_room.name == "secret" or adj_room.name == "super_secret" or r.name == "secret" or r.name == "super_secret") then
-                                    r.blks[i] = 10
-                                else
-                                    r.blks[i] = 0
-                                end
-                            end
+                        -- if there's a rm above us
+                        if(check_rm_exists(f,{x=r.x,y=r.y+1})) then
+                            if(i == 3*16+8 or i == 3*16+9) setup_secret_blks(get_rm(f,{x=r.x,y=r.y+1}),i)
                         end
-                        -- if there's a room to the right of us
-                        if(check_room_exists(f,{x=r.x+1,y=r.y})) then
-                            if(i == 8*16+16 or i == 9*16+16) then
-                                local adj_room = get_room(f,{x=r.x+1,y=r.y})
-                                if(adj_room.name == "secret" or adj_room.name == "super_secret" or r.name == "secret" or r.name == "super_secret") then
-                                    r.blks[i] = 10
-                                else
-                                    r.blks[i] = 0
-                                end
-                            end
+
+                        -- if there's a rm to the left of us
+                        if(check_rm_exists(f,{x=r.x-1,y=r.y})) then
+                            if(i == 8*16+1  or i == 9*16+1) setup_secret_blks(get_rm(f,{x=r.x-1,y=r.y}),i)
                         end
-                        -- if there's a room below us
-                        if(check_room_exists(f,{x=r.x,y=r.y-1})) then
-                            if(i == 15*16+8 or i == 15*16+9) then
-                                local adj_room = get_room(f,{x=r.x,y=r.y-1})
-                                if(adj_room.name == "secret" or adj_room.name == "super_secret" or r.name == "secret" or r.name == "super_secret") then
-                                    r.blks[i] = 10
-                                else
-                                    r.blks[i] = 0
-                                --elseif(adj_room.name ~= "angel" and adj_room.name ~= "devil") then
-                                    --r.blks[i] = 0
-                                end
-                            end
+                        -- if there's a rm to the right of us
+                        if(check_rm_exists(f,{x=r.x+1,y=r.y})) then
+                            if(i == 8*16+16 or i == 9*16+16) setup_secret_blks(get_rm(f,{x=r.x+1,y=r.y}),i)
+                        end
+                        -- if there's a rm below us
+                        if(check_rm_exists(f,{x=r.x,y=r.y-1})) then
+                            if(i == 15*16+8 or i == 15*16+9) setup_secret_blks(get_rm(f,{x=r.x,y=r.y-1}),i)
                         end
                 end
             end
@@ -398,7 +328,7 @@ function _init()
         return f
     end
 
-    -- generate the walls for a given room
+    -- generate the walls for a given rm
     function gen_walls(r,blk_num)
 
         for i=3*16+1,16*16 do
@@ -408,23 +338,23 @@ function _init()
         return r
     end
 
-    -- create a room based on the room's name (normal, secret, shop, etc.)
-    function create_room(g,f,name)
+    -- create a rm based on the rm's name (normal, secret, shop, etc.)
+    function cre_rm(g,f,name)
         
         local r = {}
         r.name = name or "normal"
 
-        -- each room has a different type of block
-        local blk_num = g.block_spr_table[r.name]
+        -- each rm has a different type of blk
+        local blk_num = g.blk_spr_table[r.name]
 
-        -- declare the empty block table for the room
+        -- declare the empty blk table for the rm
         r.blks = {}
 
         -- generate walls
         gen_walls(r,blk_num)
 
-        -- generate room specifics
-        -- generate sacrifice room spikes
+        -- generate rm specifics
+        -- generate sacrifice rm spikes
         if(r.name == "sacrifice") then
             r.blks[9*16+8] = 11
         elseif(r.name == "boss") then
@@ -433,71 +363,71 @@ function _init()
 
         if(r.name == "normal") then
             --r.blks[9*16+8] = blk_num
-            --for m=1,#g.room_layouts.normal do
+            --for m=1,#g.rm_layouts.normal do
             local m = flr(rnd(2)+1)
-                for n in all(g.room_layouts.normal[m]) do
+                for n in all(g.rm_layouts.normal[m]) do
                     r.blks[n.i*16+n.j+1] = blk_num
                 end
             --end
         end
 
-        -- generate the room's location randomly
-        -- the central room is always at (0,0)
+        -- generate the rm's location randomly
+        -- the central rm is always at (0,0)
         if(r.name ~= "central") then
      
-            -- rooms that the room can be connected to
-            local rooms = {}
+            -- rms that the rm can be connected to
+            local rms = {}
 
-            -- for the boss type room
+            -- for the boss type rm
             if(r.name == "boss") then
                 for i in all(f) do
                     if(i.name == "normal") then
-                        add(rooms,i)
+                        add(rms,i)
                     end
                 end
             else
-                rooms = f
+                rms = f
             end
 
-            -- create possible room connections from the randomly selected room
-            local rm_cns = create_possible_room_connections(rooms[flr(rnd(#rooms))+1], name or "normal")
+            -- cre possible rm connections from the randomly selected rm
+            local rm_cns = cre_possible_rm_connections(rms[flr(rnd(#rms))+1], name or "normal")
 
             -- pick one of the 4 possible connections at random
             local rm_num = flr(rnd(4))+1
 
-            -- if the room doesn't exist yet
-            if not check_room_exists(f,rm_cns[rm_num]) then
+            -- if the rm doesn't exist yet
+            if not check_rm_exists(f,rm_cns[rm_num]) then
 
-                -- add the room to the floor
+                -- add the rm to the flr
                 r.x = rm_cns[rm_num].x
                 r.y = rm_cns[rm_num].y
                 add(f,r)
             end
         else
-            -- add the room to the floor
+            -- add the rm to the flr
             r.x = 0
             r.y = 0
             add(f,r)
         end
 
-        -- add enemies to room
+        -- add enemies to rm
         local enemy_name = "demon"
         local rand_num = flr(rnd(3))
         if (rand_num == 0) enemy_name="wizard"
         if (rand_num == 1) enemy_name="skeleton"
         if(r.name == "normal") then
-            add(g.e_pool,gen_enemies_in_room(r.blks,enemy_name,r.x,r.y))
+            add(g.e_pool,gen_enemies_in_rm(r.blks,enemy_name,r.x,r.y))
         end
 
-        -- add objects to room
-        add(g.o_pool,gen_objects_in_room(r.x,r.y,r.name))
+        -- add objs to rm
+        add(g.o_pool,gen_objs_in_rm(r.x,r.y,r.name))
 
-        -- return the floor
+        -- return the flr
         return g.e_pool,g.o_pool,f
     end
 
-    -- check if the given room with particular coordinates exists
-    function check_room_exists(f,r)
+    -- check if the given rm with particular coordinates exists
+    function check_rm_exists(f,r)
         for v in all(f) do
             if(v.x == r.x and v.y == r.y) then
                 return true
@@ -506,8 +436,8 @@ function _init()
         return false
     end
 
-    -- get the room given specific coordinates
-    function get_room(f,r)
+    -- get the rm given specific coordinates
+    function get_rm(f,r)
         for k,v in pairs(f) do
             if(v.x == r.x and v.y == r.y) then
                 return v
@@ -516,90 +446,90 @@ function _init()
         return {name="void",x=r.x,y=r.y}
     end
 
-    -- create a table
-    function get_room_connections(f,r)
+    -- cre a table
+    function get_rm_connections(f,r)
         local rm_cns = {}
-        add(rm_cns,get_room(f,{x=r.x+1,y=r.y}))
-        add(rm_cns,get_room(f,{x=r.x-1,y=r.y}))
-        add(rm_cns,get_room(f,{x=r.x,y=r.y+1}))
-        add(rm_cns,get_room(f,{x=r.x,y=r.y-1}))
+        add(rm_cns,get_rm(f,{x=r.x+1,y=r.y}))
+        add(rm_cns,get_rm(f,{x=r.x-1,y=r.y}))
+        add(rm_cns,get_rm(f,{x=r.x,y=r.y+1}))
+        add(rm_cns,get_rm(f,{x=r.x,y=r.y-1}))
         return rm_cns
     end
 
-    -- count the number of rooms that exist and that are connected to the current one
-    function count_room_connections(f,r)
+    -- count the number of rms that exist and that are connected to the current one
+    function count_rm_connections(f,r)
         local num_cns = 0
         
-        if(get_room(f,{x=r.x+1,y=r.y}).name ~= "void") then num_cns = num_cns + 1 end
-        if(get_room(f,{x=r.x-1,y=r.y}).name ~= "void") then num_cns = num_cns + 1 end
-        if(get_room(f,{x=r.x,y=r.y+1}).name ~= "void") then num_cns = num_cns + 1 end
-        if(get_room(f,{x=r.x,y=r.y-1}).name ~= "void") then num_cns = num_cns + 1 end
+        if(get_rm(f,{x=r.x+1,y=r.y}).name ~= "void") then num_cns = num_cns + 1 end
+        if(get_rm(f,{x=r.x-1,y=r.y}).name ~= "void") then num_cns = num_cns + 1 end
+        if(get_rm(f,{x=r.x,y=r.y+1}).name ~= "void") then num_cns = num_cns + 1 end
+        if(get_rm(f,{x=r.x,y=r.y-1}).name ~= "void") then num_cns = num_cns + 1 end
 
         return num_cns
     end
 
-    -- generate a possible floor
-    function gen_floor(g)
+    -- generate a possible flr
+    function gen_flr(g)
 
         local f = {}
-        g.e_pool,g.o_pool,f = create_room(g,f,"central")
+        g.e_pool,g.o_pool,f = cre_rm(g,f,"central")
 
-        -- generate normal rooms
-        local num_normal_rooms = flr((4 + flr(rnd(3))) + g.world.level)
-        while(count_room_type(f,"normal") < num_normal_rooms) do
-            g.e_pool,g.o_pool,f = create_room(g,f,"normal")
+        -- generate normal rms
+        local num_normal_rms = flr((4 + flr(rnd(3))) + g.wrld.level)
+        while(count_rm_type(f,"normal") < num_normal_rms) do
+            g.e_pool,g.o_pool,f = cre_rm(g,f,"normal")
         end
 
-        -- generate a battle room
-        while(count_room_type(f,"battle") == 0) do
-            g.e_pool,g.o_pool,f = create_room(g,f,"battle")
+        -- generate a battle rm
+        while(count_rm_type(f,"battle") == 0) do
+            g.e_pool,g.o_pool,f = cre_rm(g,f,"battle")
         end
 
         -- generate a shop
-        while(count_room_type(f,"shop") == 0) do
-            g.e_pool,g.o_pool,f = create_room(g,f,"shop")
+        while(count_rm_type(f,"shop") == 0) do
+            g.e_pool,g.o_pool,f = cre_rm(g,f,"shop")
         end
 
-        -- 25% chance to generate a sacrifice room
+        -- 25% chance to generate a sacrifice rm
         if(flr(rnd(4)) == 0) then
-            while(count_room_type(f,"sacrifice") == 0) do
-                g.e_pool,g.o_pool,f = create_room(g,f,"sacrifice")
+            while(count_rm_type(f,"sacrifice") == 0) do
+                g.e_pool,g.o_pool,f = cre_rm(g,f,"sacrifice")
             end
         end
 
-        -- generate a treasure room
-        while(count_room_type(f,"treasure") == 0) do
-            g.e_pool,g.o_pool,f = create_room(g,f,"treasure")
+        -- generate a treasure rm
+        while(count_rm_type(f,"treasure") == 0) do
+            g.e_pool,g.o_pool,f = cre_rm(g,f,"treasure")
         end
 
-        -- generate a secret room
-        while(count_room_type(f,"secret") == 0) do
-            g.e_pool,g.o_pool,f = create_room(g,f,"secret")
+        -- generate a secret rm
+        while(count_rm_type(f,"secret") == 0) do
+            g.e_pool,g.o_pool,f = cre_rm(g,f,"secret")
         end
 
-        -- generate a super secret room
-        while(count_room_type(f,"super_secret") == 0) do
-            g.e_pool,g.o_pool,f = create_room(g,f,"super_secret")
+        -- generate a super secret rm
+        while(count_rm_type(f,"super_secret") == 0) do
+            g.e_pool,g.o_pool,f = cre_rm(g,f,"super_secret")
         end
 
-        -- chance to generate a sub-boss room
+        -- chance to generate a sub-boss rm
         if(flr(rnd(7)) == 0) then
-            while(count_room_type(f,"sub_boss") == 0) do
-                g.e_pool,g.o_pool,f = create_room(g,f,"sub_boss")
+            while(count_rm_type(f,"sub_boss") == 0) do
+                g.e_pool,g.o_pool,f = cre_rm(g,f,"sub_boss")
             end
         end
 
-        -- generate a boss room
-        while(count_room_type(f,"boss") == 0) do
-            g.e_pool,g.o_pool,f = create_room(g,f,"boss")
+        -- generate a boss rm
+        while(count_rm_type(f,"boss") == 0) do
+            g.e_pool,g.o_pool,f = cre_rm(g,f,"boss")
         end
 
         --[[
-        while(g.count_room_type(f,"devil") == 0 and g.count_room_type(f,"angel") == 0) do
+        while(g.count_rm_type(f,"devil") == 0 and g.count_rm_type(f,"angel") == 0) do
             if(flr(rnd(2)) == 0) then
-                g.e_pool,g.o_pool,f = g.create_room(g,f,"angel")
+                g.e_pool,g.o_pool,f = g.cre_rm(g,f,"angel")
             else
-                g.e_pool,g.o_pool,f = g.create_room(g,f,"devil")
+                g.e_pool,g.o_pool,f = g.cre_rm(g,f,"devil")
             end
         end]]
         
@@ -607,20 +537,20 @@ function _init()
         return g.e_pool,g.o_pool,f
     end
 
-    -- validates if a floor meets the necessary requirements
-    function validate_floor(f,g)
+    -- validates if a flr meets the necessary requirements
+    function validate_flr(f,g)
         
         for r in all(f) do
 
-            -- all rooms must be connected
-            if(count_room_connections(f,r) < 1) then
+            -- all rms must be connected
+            if(count_rm_connections(f,r) < 1) then
                 return false
             end
             
             --[[
             if(r.name == "boss") then
-                if(g.count_room_connections(f,r) == 2) then
-                    local rm_cns = g.get_room_connections(f,r)
+                if(g.count_rm_connections(f,r) == 2) then
+                    local rm_cns = g.get_rm_connections(f,r)
                     for rm in all(rm_cns) do
                         if ((rm.name ~= "normal") and (rm.name ~= "void") and rm.name == "angel" and rm.name == "devil") then
                             return false
@@ -631,10 +561,10 @@ function _init()
                 end
             end]]
 
-            -- boss room and super secret room must have only one connection to a normal room
+            -- boss rm and super secret rm must have only one connection to a normal rm
             if(r.name == "boss" or r.name == "super_secret") then
-                if(count_room_connections(f,r) == 1) then
-                    local rm_cns = get_room_connections(f,r)
+                if(count_rm_connections(f,r) == 1) then
+                    local rm_cns = get_rm_connections(f,r)
                     for rm in all(rm_cns) do
                         if ((rm.name ~= "normal") and (rm.name ~= "void")) then
                             return false
@@ -645,17 +575,17 @@ function _init()
                 end
             end
 
-            -- secret room must have at least two connections
+            -- secret rm must have at least two connections
             if(r.name == "secret") then
-                if(count_room_connections(f,r) < 2) then
+                if(count_rm_connections(f,r) < 2) then
                     return false
                 end
             end
 
             --[[
             if(r.name == "angel" or r.name == "devil") then
-                if(g.count_room_connections(f,r) == 1) then
-                    local rm_cns = g.get_room_connections(f,r)
+                if(g.count_rm_connections(f,r) == 1) then
+                    local rm_cns = g.get_rm_connections(f,r)
                     for rm in all(rm_cns) do
                         if ((rm.name ~= "boss") and (rm.name ~= "void")) then
                             return false
@@ -670,8 +600,8 @@ function _init()
         return true
     end
 
-    -- count how many rooms exist of a certain type name
-    function count_room_type(f,name)
+    -- count how many rms exist of a certain type name
+    function count_rm_type(f,name)
         local num = 0
         for r in all(f) do
             if(r.name == name) then
@@ -681,24 +611,24 @@ function _init()
         return num
     end
 
-    -- get the room we are currently in
+    -- get the rm we are currently in
     --[[
-    function get_current_room(g)
-        for r in all(g.floor) do
-            if(r.x == g.world.x and r.y == g.world.y) then
+    function get_current_rm(g)
+        for r in all(g.flr) do
+            if(r.x == g.wrld.x and r.y == g.wrld.y) then
                 return r
             end
         end
     end]]
 
     -- refresh game timer, enemies
-    function refresh_room(g)
+    function refresh_rm(g)
 
-        -- reset the timer, room blks, room enemies, room objects and all shots
+        -- reset the timer, rm blks, rm enemies, rm objs and all shots
         g.timer = 0
         g.blks = {}
         g.enemies = {}
-        g.objects = {}
+        g.objs = {}
         g.particles = {}
         g.p1.shots = {}
         g.bombs = {}
@@ -709,13 +639,13 @@ function _init()
             add(g.blks,0)
         end
 
-        -- for all rooms on the floor
-        for r in all(g.floor) do
+        -- for all rms on the flr
+        for r in all(g.flr) do
 
-            -- for the room we are in
-            if(r.x == g.world.x and r.y == g.world.y) then
+            -- for the rm we are in
+            if(r.x == g.wrld.x and r.y == g.wrld.y) then
 
-                -- setup the room's block table
+                -- setup the rm's blk table
                 g.blks = r.blks
 
                 -- destroy nearby bombable blks
@@ -731,28 +661,28 @@ function _init()
                         --local b = {x=((i-1)*8)%128,y=8*flr((i-1)/16),w=8,h=8}
 
                 -- get enemies from the pool
-                local e_pool = get_enemies_from_pool(g.e_pool,g.world.x,g.world.y)
+                local e_pool = get_enemies_from_pool(g.e_pool,g.wrld.x,g.wrld.y)
                 for e in all(e_pool) do
                     g.enemies = spawn_enemy(g.enemies,e.x,e.y,e.w,e.h,e.name,e.is_boss,g)
                 end
 
-                -- get objects from the pool
-                local o_pool = get_objects_from_pool(g.o_pool,g.world.x,g.world.y)
+                -- get objs from the pool
+                local o_pool = get_objs_from_pool(g.o_pool,g.wrld.x,g.wrld.y)
                 
-                -- populate room objects with object pool
+                -- populate rm objs with obj pool
                 for o in all(o_pool) do
-                    g.objects = spawn_object(g.objects,o.x,o.y,o.w,o.h,o.name,g)
+                    g.objs = spawn_obj(g.objs,o.x,o.y,o.w,o.h,o.name,g)
                 end
 
-                -- has the player been in this room yet?
-                local room_expl = false
+                -- has the player been in this rm yet?
+                local rm_expl = false
                 for e in all(g.map_explored) do
-                    if(e.x == g.world.x and e.y == g.world.y) then
-                        room_expl = true
+                    if(e.x == g.wrld.x and e.y == g.wrld.y) then
+                        rm_expl = true
                         break
                     end
                 end
-                if(not room_expl) add(g.map_explored,{x=g.world.x,y=g.world.y})
+                if(not rm_expl) add(g.map_explored,{x=g.wrld.x,y=g.wrld.y})
 
                 -- set the music up
                 if (r.name == "secret" or r.name == "super_secret") then
@@ -761,9 +691,9 @@ function _init()
                     music(-1)
                 end
 
-                g.world.name = r.name
+                g.wrld.name = r.name
 
-                -- break as we found the room we wanted
+                -- break as we found the rm we wanted
                 break
             end
         end
@@ -772,35 +702,35 @@ function _init()
         --spawn_time = flr(rnd(2*30)) + 1*30
     end
 
-    -- update the room when the player exits the screen
-    function update_room(g)
+    -- upd the rm when the player exits the screen
+    function upd_rm(g)
 
-        -- go to left room
+        -- go to left rm
         if(g.p1.x <= 0 - g.p1.dx + 1) then
-            g.world.x -= 1
+            g.wrld.x -= 1
             g.p1.x = 128 - 2 * 8
-            g = refresh_room(g)
+            g = refresh_rm(g)
         end
 
-        -- go to right room
+        -- go to right rm
         if(g.p1.x >= 128 - 8 - g.p1.dx - 1) then
-            g.world.x += 1
+            g.wrld.x += 1
             g.p1.x = 8
-            g = refresh_room(g)
+            g = refresh_rm(g)
         end
 
-        -- go to room above
+        -- go to rm above
         if(g.p1.y <= 24 - g.p1.dy + 1) then
-            g.world.y += 1
+            g.wrld.y += 1
             g.p1.y = 128 - 2 * 8
-            g = refresh_room(g)
+            g = refresh_rm(g)
         end
 
-        -- go to room below
+        -- go to rm below
         if(g.p1.y >= 128 - g.p1.h - g.p1.dy - 1) then
-            g.world.y -= 1
+            g.wrld.y -= 1
             g.p1.y = 8 + 24
-            g = refresh_room(g)
+            g = refresh_rm(g)
         end
 
         return g
@@ -809,9 +739,9 @@ function _init()
     ----------------------------------------------- map system ------------------------------------------------
 
     function draw_map(g)
-        for r in all(g.floor) do
-            local x_dist = r.x - g.world.x
-            local y_dist = r.y - g.world.y
+        for r in all(g.flr) do
+            local x_dist = r.x - g.wrld.x
+            local y_dist = r.y - g.wrld.y
             
             for e in all(g.map_explored) do
                 if ((e.x == r.x and e.y == r.y) or ((abs(x_dist) <=1 and abs(y_dist) <= 1)
@@ -821,14 +751,14 @@ function _init()
             end
         end
 
-        -- draw flashing current room indicator
+        -- draw flashing current rm indicator
         if(g.timer % 30 < 15) then
             color(7)
-            rect(64+g.world.x*8,64-g.world.y*8,64+g.world.x*8+7,64-g.world.y*8+7)
+            rect(64+g.wrld.x*8,64-g.wrld.y*8,64+g.wrld.x*8+7,64-g.wrld.y*8+7)
         end
 
         color(7)
-        print("floor " .. g.world.level) 
+        print("flr " .. g.wrld.level) 
     end
 
     -- draw minimap
@@ -836,9 +766,9 @@ function _init()
 
         rect(104,0,127,23,7)
 
-        for r in all(g.floor) do
-            local x_dist = r.x - g.world.x
-            local y_dist = r.y - g.world.y
+        for r in all(g.flr) do
+            local x_dist = r.x - g.wrld.x
+            local y_dist = r.y - g.wrld.y
             for e in all(g.map_explored) do
                 if ((abs(x_dist) <= 1 and abs(y_dist) <= 1)
                     and (r.name ~= "secret" or (e.x == r.x and e.y == r.y))
@@ -848,7 +778,7 @@ function _init()
             end
         end
 
-        -- draw flashing current room indicator
+        -- draw flashing current rm indicator
         if(g.timer % 30 < 15) then
 
             color(7)
@@ -858,13 +788,13 @@ function _init()
 
     --------------------------------------------- physics system ----------------------------------------------
 
-    function get_block(blks,x,y)
+    function get_blk(blks,x,y)
         return blks[flr(x/8)+16*flr(y/8)+1]
     end
 
     -- check if a map cell is solid
     function solid(blks,x,y)
-        local blk = get_block(blks,x,y)
+        local blk = get_blk(blks,x,y)
         if(blk ~= nil) then
 
             if(fget(blk) == 1 or fget(blk) == 5) then
@@ -874,16 +804,16 @@ function _init()
         return false
     end
 
-    -- get the flag of a particular block by coordinates
+    -- get the flag of a particular blk by coordinates
     function get_flag(blks,x,y)
-        return fget(get_block(blks,x,y))
+        return fget(get_blk(blks,x,y))
     end
 
     -- check if the area is solid
     function solid_area(blks,x,y,w,h,is_player)
         if(is_player and (get_flag(blks,x+w,y) == 2 or get_flag(blks,x+w,y+h) == 2
             or get_flag(blks,x,y) == 2 or get_flag(blks,x,y+h) == 2 ) ) then
-            create_event({name="go to next floor"})
+            cre_event({name="go to next flr"})
         end
         return solid(blks,x+w,y) or solid(blks,x+w,y+h) or solid(blks,x,y) or solid(blks,x,y+h)
     end
@@ -896,7 +826,7 @@ function _init()
 
     -- move the player, an npc or an enemy
     function move_act(blks, act, is_solid, is_player)
-        local g = globals
+        local g = glbls
 
 
         if(is_solid) then
@@ -916,15 +846,15 @@ function _init()
             act.y += act.dy
         end
 
-        -- object collision
-        for o in all(g.objects) do
+        -- obj collision
+        for o in all(g.objs) do
             if is_player and act_col(act,o) then
 
                 local get_item = false
 
-                if(g.world.name == "shop") then
-                    if(g.p1.money >= g.object_table_price[o.name]) then
-                        g.p1.money -= g.object_table_price[o.name]
+                if(g.wrld.name == "shop") then
+                    if(g.p1.money >= g.obj_table_price[o.name]) then
+                        g.p1.money -= g.obj_table_price[o.name]
                         get_item = true
                     end
                 else
@@ -932,7 +862,8 @@ function _init()
                 end
 
                 if(get_item) then
-                    create_event({name="remove object",obj=o})
+                    remove_obj_from_pool(g.o_pool,o,g.wrld.x,g.wrld.y)
+                    del(g.objs,o)
                     if(o.name == "penny") then
                         g.p1.money += 1
                     elseif(o.name == "nickel") then
@@ -968,18 +899,18 @@ function _init()
             act.is_invincible = true
             sfx(1)
             if(act.cur_health <= 0) then
-                create_event({name="create particles",x=act.x,y=act.y,w=act.w,h=act.h})
-                if(is_enemy) create_event({name="enemy death", enemy=act})
+                cre_event({name="cre particles",x=act.x,y=act.y,w=act.w,h=act.h})
+                if(is_enemy) cre_event({name="enemy death", enemy=act})
             end
         end
         return act,shots
     end
 
-    -- update shots
-    function update_shots(blks,shots)
+    -- upd shots
+    function upd_shots(blks,shots)
         for s in all(shots) do
 
-            -- update shots
+            -- upd shots
             s.x += s.spd * cos(s.angle/360)
             s.y += s.spd * sin(s.angle/360) 
 
@@ -995,14 +926,14 @@ function _init()
                 end
             end
 
-            -- if a shot hits a block
+            -- if a shot hits a blk
             if solid_area(blks,s.x,s.y,s.w,s.h) and not s.spectral then
                 local clr = 7
                 if(s.status == "chill") clr = 12
                 if(s.status == "fire") clr = 8
                 if(s.status == "poison") clr = 11
                 if(s.status == "stone") clr = 5
-                create_event({name="create particles",x=s.x,y=s.y,w=s.w,h=s.h,clr=clr})
+                cre_event({name="cre particles",x=s.x,y=s.y,w=s.w,h=s.h,clr=clr})
                 del(shots,s)
                 sfx(1)
             end
@@ -1012,7 +943,7 @@ function _init()
 
     ---------------------------------------------- enemy system -----------------------------------------------
 
-    function gen_enemies_in_room(blks,name,x,y)
+    function gen_enemies_in_rm(blks,name,x,y)
         local enemies = {}
 
         local valid_enemies = false
@@ -1102,13 +1033,13 @@ function _init()
         return e,enemy_shots
     end
 
-    -- get a list of enemies in a particular room in the pool
-    function get_enemies_from_pool(e_pool,room_x,room_y)
-        -- check all the rooms in the enemy pool
+    -- get a list of enemies in a particular rm in the pool
+    function get_enemies_from_pool(e_pool,rm_x,rm_y)
+        -- check all the rms in the enemy pool
         for r in all(e_pool) do
 
-            -- if we find the room we are looking for, get the list of enemies in it
-            if(r.x == room_x and r.y == room_y) then
+            -- if we find the rm we are looking for, get the list of enemies in it
+            if(r.x == rm_x and r.y == rm_y) then
                 return r.enemies
             end
         end
@@ -1117,15 +1048,15 @@ function _init()
         return {}
     end
 
-    -- delete a particular enemy from the pool based on a certain room and enemy name
-    function rm_enemy_from_pool(e_pool,enemy,room_x,room_y)
-        -- for each room in the enemy pool
+    -- delete a particular enemy from the pool based on a certain rm and enemy name
+    function rm_enemy_from_pool(e_pool,enemy,rm_x,rm_y)
+        -- for each rm in the enemy pool
         for r in all(e_pool) do
 
-            -- if the room in the pool is the one we want
-            if(r.x == room_x and r.y == room_y) then
+            -- if the rm in the pool is the one we want
+            if(r.x == rm_x and r.y == rm_y) then
 
-                -- search the table of enemies in the room
+                -- search the table of enemies in the rm
                 for e in all(r.enemies) do
 
                     -- if we found the name of the enemy that we want, delete it
@@ -1165,8 +1096,8 @@ function _init()
         return enemies
     end
 
-    -- update the enemy
-    function update_enemy(e,g)
+    -- upd the enemy
+    function upd_enemy(e,g)
         e,g.enemy_shots = enemy_ai(e,g.p1,g.enemy_shots)
         e = move_act(g.blks, e, true)
 
@@ -1207,8 +1138,8 @@ function _init()
         -- if the 'x' key is pressed
         if(btnp(5)) then 
             if(g.debug) then
-                --globals.p1.current_status = (g.p1.current_status + 1) % #g.status_ailments + 1
-                --globals.p1.status = g.status_ailments[globals.p1.current_status]
+                --glbls.p1.current_status = (g.p1.current_status + 1) % #g.status_ailments + 1
+                --glbls.p1.status = g.status_ailments[glbls.p1.current_status]
                 g.p1.current_status += 1
                 g.p1.status = g.status_ailments[g.p1.current_status % #g.status_ailments + 1]
             else
@@ -1257,14 +1188,14 @@ function _init()
                     player.spr = 33
                     player.angle = 270
                 end
-                create_event({name="move actor",player=player})
+                cre_event({name="move actor",player=player})
             end
 
             -- stop horizontal movement
             if not btn(0) and not btn(1) then
                 if p1.dx ~= 0 then
                     player.dx = 0
-                    create_event({name="stop moving horizontally",player=player})
+                    cre_event({name="stop moving horizontally",player=player})
                 end
             end
             
@@ -1272,7 +1203,7 @@ function _init()
             if not btn(2) and not btn(3) then
                 if p1.dy ~= 0 then
                     player.dy = 0
-                    create_event({name="stop moving vertically",player=player})
+                    cre_event({name="stop moving vertically",player=player})
                 end
             end
 
@@ -1301,15 +1232,15 @@ function _init()
                     )
                 p1.can_shoot = false
                 sfx(0)
-                --create_event({name="activate polling",act=p1})
+                --cre_event({name="activate polling",act=p1})
             end
         end
 
         return g
     end
 
-    -- update the player based on timers
-    function update_player(p1)
+    -- upd the player based on timers
+    function upd_player(p1)
         -- recharge the player's shot ability
         if(p1.can_shoot == false) then
             if(p1.shot_timer >= g.p1.shot_cooldown) then
@@ -1342,7 +1273,7 @@ function _init()
         return p1
     end
 
-    function update_bombs(bombs)
+    function upd_bombs(bombs)
         for b in all(bombs) do
             b.timer += 1
             if(b.timer > 30) then
@@ -1354,22 +1285,22 @@ function _init()
         return bombs
     end
 
-    ---------------------------------------------- object system ----------------------------------------------
+    ---------------------------------------------- obj system ----------------------------------------------
 
-    -- delete a particular object from the pool based on a certain room
-    function remove_obj_from_pool(o_pool,object,room_x,room_y)
-        -- for each room in the object pool
+    -- delete a particular obj from the pool based on a certain rm
+    function remove_obj_from_pool(o_pool,obj,rm_x,rm_y)
+        -- for each rm in the obj pool
         for r in all(o_pool) do
 
-            -- if the room in the pool is the one we want
-            if(r.x == room_x and r.y == room_y) then
+            -- if the rm in the pool is the one we want
+            if(r.x == rm_x and r.y == rm_y) then
 
-                -- search the table of enemies in the room
-                for o in all(r.objects) do
+                -- search the table of enemies in the rm
+                for o in all(r.objs) do
 
-                    -- if we found the object that we want, delete it
-                    if(o.x == object.x and o.y == object.y) then
-                        del(r.objects,o)
+                    -- if we found the obj that we want, delete it
+                    if(o.x == obj.x and o.y == obj.y) then
+                        del(r.objs,o)
                     end
                 end
             end
@@ -1377,20 +1308,20 @@ function _init()
         return o_pool
     end
 
-    function get_objects_from_pool(o_pool,room_x,room_y)
-        -- check all the rooms in the enemy pool
+    function get_objs_from_pool(o_pool,rm_x,rm_y)
+        -- check all the rms in the enemy pool
         for r in all(o_pool) do
 
-            -- if we find the room we are looking for, get the list of objects in it
-            if(r.x == room_x and r.y == room_y) return r.objects
+            -- if we find the rm we are looking for, get the list of objs in it
+            if(r.x == rm_x and r.y == rm_y) return r.objs
         end
 
-        -- if there is no entry in the object pool table, return an empty list
+        -- if there is no entry in the obj pool table, return an empty list
         return {}
     end
 
-    -- spawn object function
-    function spawn_object(objects,x,y, w, h, name, g)
+    -- spawn obj function
+    function spawn_obj(objs,x,y, w, h, name, g)
         
         local o = {}
         o.x = x or 0
@@ -1398,57 +1329,57 @@ function _init()
         o.w = w or 8
         o.h = h or 8
         o.name = name or "penny"
-        o.spr = g.object_table_name[o.name]
-        o.price = g.object_table_price[o.name]
+        o.spr = g.obj_table_name[o.name]
+        o.price = g.obj_table_price[o.name]
         o.timer = 0
 
-        add(objects,o)
+        add(objs,o)
 
-        return objects
+        return objs
     end
 
-    function gen_objects_in_room(x,y,room_name)
-        local objects = {}
+    function gen_objs_in_rm(x,y,rm_name)
+        local objs = {}
         --{{x=8*flr(rnd(8))+32,y=8*flr(rnd(8))+32,w=8,h=8,name=name or "penny"}}
 
         local obj_name = ""
-        if(room_name == "secret") obj_name = "penny"
-        if(room_name == "super_secret") obj_name = "nickel"
+        if(rm_name == "secret") obj_name = "penny"
+        if(rm_name == "super_secret") obj_name = "nickel"
 
-        if(room_name == "secret" or room_name == "super_secret") then
-            add(objects,{x=8+16,y=32+16,w=8,h=8,name=obj_name})
-            add(objects,{x=128-8-16,y=32+16,w=8,h=8,name=obj_name})
-            add(objects,{x=8+16,y=128-16-16,w=8,h=8,name=obj_name})
-            add(objects,{x=128-8-16,y=128-16-16,w=8,h=8,name=obj_name})
+        if(rm_name == "secret" or rm_name == "super_secret") then
+            add(objs,{x=8+16,y=32+16,w=8,h=8,name=obj_name})
+            add(objs,{x=128-8-16,y=32+16,w=8,h=8,name=obj_name})
+            add(objs,{x=8+16,y=128-16-16,w=8,h=8,name=obj_name})
+            add(objs,{x=128-8-16,y=128-16-16,w=8,h=8,name=obj_name})
 
-        elseif(room_name == "shop") then
-            add(objects,{x=8+34,y=52+16,w=8,h=8,name="bomb"})
-            add(objects,{x=8+50,y=52+16,w=8,h=8,name="bomb"})
-            add(objects,{x=8+66,y=52+16,w=8,h=8,name="bomb"})
+        elseif(rm_name == "shop") then
+            add(objs,{x=8+34,y=52+16,w=8,h=8,name="bomb"})
+            add(objs,{x=8+50,y=52+16,w=8,h=8,name="bomb"})
+            add(objs,{x=8+66,y=52+16,w=8,h=8,name="bomb"})
         
-        elseif(room_name == "treasure") then
+        elseif(rm_name == "treasure") then
 
             if(#g.powerup_pool >= 1) then
                 -- pick a powerup from the powerup pool
                 local powerup = flr(rnd(#g.powerup_pool)) + 1
 
-                add(objects,{x=8+50,y=52+16,w=8,h=8,name=g.powerup_pool[powerup]})
+                add(objs,{x=8+50,y=52+16,w=8,h=8,name=g.powerup_pool[powerup]})
             end
         end
 
-        return {x=x,y=y,objects=objects}
+        return {x=x,y=y,objs=objs}
     end
 
     --------------------------------------------- particle system ---------------------------------------------
 
-    function create_particles(particles,x,y,r,clr)
+    function cre_particles(particles,x,y,r,clr)
         for i=1,8 do
             add(particles,{x=x,y=y,dx=(rnd(4)-2),dy=(rnd(4)-2),life_timer=10,clr=clr or 8,r=r or 0.5})
         end
         return particles
     end
 
-    function update_particles(particles)
+    function upd_particles(particles)
         for p in all(particles) do
             p.life_timer -= 1
             if(p.life_timer <= 0) then
@@ -1462,13 +1393,25 @@ function _init()
 end
 
 function _update()
-	local g = globals
+	local g = glbls
 
-    -- update the event queue
-    g = update_events(g)
+    -- upd the event queue
+    g = upd_events(g)
 
-    -- listen for button presses
-    button_listener()
+    -- title menu
+    if(g.game_state == "title") then
+        if btn(4) then
+            g.game_state = "how_to_play"
+            sfx(2)
+        end
+
+    -- how to play
+    elseif(g.game_state == "how_to_play") then
+        if btn(4) then
+            g = cre_game(g)
+            sfx(2)
+        end
+    end
 
 	g.timer = (g.timer + 1) % 32000
 	
@@ -1482,12 +1425,12 @@ function _update()
 
         if(g.p1.cur_health > 0) then
 
-            g.p1 = update_player(g.p1)
+            g.p1 = upd_player(g.p1)
             g = player_controls(g.p1,g)
 
-			-- update the enemies
+			-- upd the enemies
 			for e in all(g.enemies) do
-				e,g = update_enemy(e,g)
+				e,g = upd_enemy(e,g)
 			end
 
             -- enemy shots hitting player
@@ -1496,21 +1439,21 @@ function _update()
             end
         else
             if btnp(5) then
-                g = create_game(g)
+                g = cre_game(g)
                 sfx(2)
             end
         end 
 
-		-- update the player's shots
-		g.p1.shots = update_shots(g.blks,g.p1.shots)
+		-- upd the player's shots
+		g.p1.shots = upd_shots(g.blks,g.p1.shots)
 
-		-- update enemy shots
-		g.enemy_shots = update_shots(g.blks,g.enemy_shots)
+		-- upd enemy shots
+		g.enemy_shots = upd_shots(g.blks,g.enemy_shots)
 
-        -- update bombs
-        g.bombs = update_bombs(g.bombs)
+        -- upd bombs
+        g.bombs = upd_bombs(g.bombs)
 
-        -- update bomb explosions
+        -- upd bomb explosions
         for e in all(g.bomb_explosions) do
             e.timer += 1
             if(e.timer >= 15) del(g.bomb_explosions,e)
@@ -1526,17 +1469,17 @@ function _update()
             end
 
             for enemy in all(g.enemies) do
-                if(act_col(enemy,e_aoe)) act_take_dmg(enemy,{},{atk=2},true) --create_event({name = "enemy death",enemy=enemy})
+                if(act_col(enemy,e_aoe)) act_take_dmg(enemy,{},{atk=2},true) --cre_event({name = "enemy death",enemy=enemy})
             end
         end
 
-		-- update the particle system
-		g.particles = update_particles(g.particles)
+		-- upd the particle system
+		g.particles = upd_particles(g.particles)
 	end
 end
 
 function _draw()
-	local g = globals
+	local g = glbls
 
 	-- clear the screen with black
 	cls()
@@ -1561,7 +1504,7 @@ function _draw()
 	elseif(g.game_state == "title") then
 		print("untitled roguelike", 32, 0)
 		print("press z to start", 36, 64)
-		print("v0.4.0",104,120)
+		print("v0.4.0.1",96,120)
 
     elseif(g.game_state == "how_to_play") then
         print("how to play", 48, 0)
@@ -1572,14 +1515,14 @@ function _draw()
         print("coins can be used to buy items", 0, 56)
         print("in shops.", 0, 64)
         print("bombs can be used to reveal", 0, 80)
-        print("hidden rooms by destroying the", 0, 88)
+        print("hidden rms by destroying the", 0, 88)
         print("middle of some walls.", 0, 96)
         print("press z to start game", 30, 120)
 
 	elseif(g.game_state == "game") then
 
         -- draw shop prices
-        if(g.world.name == "shop") then
+        if(g.wrld.name == "shop") then
             print("3",44,80,7)
             print("3",60,80,7)
             print("3",76,80,7)
@@ -1631,7 +1574,7 @@ function _draw()
 			end
 		end
 		
-        -- draw bombs on floor
+        -- draw bombs on flr
         for b in all(g.bombs) do
             spr(63,b.x,b.y)
         end
@@ -1658,16 +1601,16 @@ function _draw()
 	 	for i=1,(16*16) do
 	 		local b = g.blks[i]
 
-            if(g.world.name == "secret") then
-                if(b == g.block_spr_table["secret"] or b == 10) then
+            if(g.wrld.name == "secret") then
+                if(b == g.blk_spr_table["secret"] or b == 10) then
                 
                     -- draw a strobing rainbow effect
                     pal(5, flr(g.timer/8)%15+1)
                     spr(8,((i-1)*8)%128, 8*flr((i-1)/16))
                     pal()
                 end
-            elseif(g.world.name == "super_secret") then
-                if(b == g.block_spr_table["super_secret"] or b == 10) then
+            elseif(g.wrld.name == "super_secret") then
+                if(b == g.blk_spr_table["super_secret"] or b == 10) then
                     for j=0,7 do
                         -- draw a scrolling rainbow effect
                         rectfill( ((i-1)*8+j)%128, 8*flr((i-1)/16), ((i-1)*8+j)%128, 8*flr((i-1)/16)+7, g.rainbow_colors[(g.timer+j)%(#g.rainbow_colors)])
@@ -1679,7 +1622,7 @@ function _draw()
 
                 -- bomb walls
                 elseif(b == 10) then
-                    spr(g.block_spr_table[g.world.name],((i-1)*8)%128, 8*flr((i-1)/16))
+                    spr(g.blk_spr_table[g.wrld.name],((i-1)*8)%128, 8*flr((i-1)/16))
 
     	 		elseif(b ~= 0) then
     	 			spr(b,((i-1)*8)%128, 8*flr((i-1)/16))
@@ -1687,8 +1630,8 @@ function _draw()
             end
 	 	end
 
-        -- draw objects
-        for o in all(g.objects) do
+        -- draw objs
+        for o in all(g.objs) do
             spr(o.spr,o.x,o.y)
         end
 
@@ -1757,10 +1700,10 @@ function _draw()
         print("shot range: " .. g.p1.shot_range,32,64)
         print("speed: " .. g.p1.spd,32,72)
         print("luck: " .. g.p1.luck,32,80)
-        --spr(g.object_table_name["ice_shot"],4,116)
+        --spr(g.obj_table_name["ice_shot"],4,116)
         for p in all(g.p1.shot_statuses) do
             if(p == "chill") then
-                spr(g.object_table_name["ice_shot"],4,116)
+                spr(g.obj_table_name["ice_shot"],4,116)
             end
         end
 	end

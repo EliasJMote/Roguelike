@@ -1,4 +1,4 @@
-﻿(Untitled) Roguelike ver 0.4.0
+﻿(Untitled) Roguelike ver 0.4.0.1
 
 Copyright © 2019 Elias Mote
 Copyright © 2019 Roc Studios
@@ -21,7 +21,16 @@ strictly prohibited, and a violation of copyright.
 II. Version History
 
 ------------------------
-V0.4.0 - Current version
+V0.4.0.1
+------------------------
+------------------------------------------------- Hotfix ------------------------------------------------
+- The compressed limit of the p8 file was 104%. I began work on removing the event system and shortening
+some words to fit the entire game in the limited space. It's gonna take some creative work to make sure
+the game doesn't exceed Pico-8's limit short of devising/using a minifier. Currently it's sitting at
+99.17%.
+
+------------------------
+V0.4.0
 ------------------------
 ------------------------------------------------- Updates -----------------------------------------------
 - Added power-up sprites for movement speed, status shots (fire, ice, poison, stone)
